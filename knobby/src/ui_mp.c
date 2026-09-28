@@ -122,7 +122,7 @@ static const lv_font_t *get_counter_badge_font(const counter_definition_t *defin
         return &mana_counter_icons_16;
     }
 
-    return &lv_font_montserrat_14;
+    return &lv_font_beleren_bold_14;
 }
 
 static const char *get_counter_badge_text(const counter_definition_t *definition)
@@ -168,7 +168,7 @@ static void create_counter_row(lv_obj_t *parent, counter_type_t type,
     *value_out = lv_label_create(row);
     lv_label_set_text(*value_out, "0");
     lv_obj_set_style_text_color(*value_out, get_player_text_color(player_index), 0);
-    lv_obj_set_style_text_font(*value_out, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(*value_out, &lv_font_beleren_bold_14, 0);
     lv_obj_align(*value_out, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_style_text_align(*value_out, LV_TEXT_ALIGN_CENTER, 0);
 
@@ -538,21 +538,21 @@ void refresh_multiplayer_ui(void)
                    orientation; drop to the smaller one only when the
                    value is too wide and would reach into the counter
                    arc beside the number (3+ digits). */
-                life_font = &lv_font_montserrat_bold_56;
+                life_font = &lv_font_belerensmallcaps_bold_56;
                 if (life_lbl != NULL) {
                     lv_point_t ts;
                     lv_txt_get_size(&ts, lv_label_get_text(life_lbl),
                                     life_font, 0, 0, LV_COORD_MAX,
                                     LV_TEXT_FLAG_NONE);
-                    if (ts.x > 84) life_font = &lv_font_montserrat_bold_44;
+                    if (ts.x > 84) life_font = &lv_font_belerensmallcaps_bold_44;
                 }
             } else if (orientation_mode == ORIENTATION_MODE_CENTRIC) {
                 /* Rect quadrants: rotated bold-56 labels don't fit */
-                life_font = &lv_font_montserrat_bold_44;
+                life_font = &lv_font_belerensmallcaps_bold_44;
             } else {
-                life_font = &lv_font_montserrat_bold_56;
+                life_font = &lv_font_belerensmallcaps_bold_56;
             }
-            life_pivot_y = (life_font == &lv_font_montserrat_bold_56) ? 12 : 10;
+            life_pivot_y = (life_font == &lv_font_belerensmallcaps_bold_56) ? 12 : 10;
 
             if (life_lbl != NULL) {
                 lv_obj_clear_flag(life_lbl, LV_OBJ_FLAG_HIDDEN);
@@ -817,14 +817,14 @@ void rebuild_multiplayer_layout(int track)
         name_lbl = lv_label_create(panel);
         lv_label_set_text(name_lbl, player_names[p]);
         lv_obj_set_style_text_color(name_lbl, lv_color_white(), 0);
-        lv_obj_set_style_text_font(name_lbl, &lv_font_montserrat_22, 0);
+        lv_obj_set_style_text_font(name_lbl, &lv_font_beleren_bold_22, 0);
         lv_obj_align(name_lbl, LV_ALIGN_CENTER, 0, 30);
         mp_state.name_labels[i] = name_lbl;
 
         life_lbl = lv_label_create(panel);
         lv_label_set_text(life_lbl, "40");
         lv_obj_set_style_text_color(life_lbl, lv_color_white(), 0);
-        lv_obj_set_style_text_font(life_lbl, &lv_font_montserrat_bold_56, 0);
+        lv_obj_set_style_text_font(life_lbl, &lv_font_belerensmallcaps_bold_56, 0);
         lv_obj_align(life_lbl, LV_ALIGN_CENTER, 0, -10);
         mp_state.life_labels[i] = life_lbl;
 

@@ -207,7 +207,7 @@ void build_mana_screen(void)
     label = lv_label_create(screen_mana);
     lv_label_set_text(label, "Mana Pool");
     lv_obj_set_style_text_color(label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_font(label, &lv_font_beleren_bold_22, 0);
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 36);
 
     /* 3x2 grid of mana boxes */
@@ -241,7 +241,7 @@ void build_mana_screen(void)
         /* value label */
         lv_obj_t *val = lv_label_create(box);
         lv_label_set_text(val, "0");
-        lv_obj_set_style_text_font(val, &lv_font_montserrat_32, 0);
+        lv_obj_set_style_text_font(val, &lv_font_beleren_bold_32, 0);
         lv_obj_set_style_text_color(val, lv_color_white(), 0);
         lv_obj_align(val, LV_ALIGN_BOTTOM_MID, 0, -4);
 
@@ -263,7 +263,7 @@ void build_mana_screen(void)
         label = lv_label_create(btn);
         lv_label_set_text(label, "Clear All\n(Hold)");
         lv_obj_set_style_text_color(label, lv_color_white(), 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(label, &lv_font_beleren_bold_14, 0);
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
     }
