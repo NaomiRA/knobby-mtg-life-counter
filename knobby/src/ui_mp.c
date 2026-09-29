@@ -52,6 +52,7 @@ static bool spec_is_wedge(const mp_panel_spec_t *spec)
 #define WEDGE_CX 180
 #define WEDGE_CY 180
 #define WEDGE_LABEL_RADIUS 88
+#define MP_OUTLINE_COLOR 0x808080
 
 typedef struct {
     int16_t bis_deg;                /* slice bisector angle */
@@ -110,7 +111,7 @@ static struct {
     lv_obj_t *life_labels[MULTIPLAYER_COUNT];
     lv_obj_t *name_labels[MULTIPLAYER_COUNT];
     lv_obj_t *damage_groups[MULTIPLAYER_COUNT];
-    lv_obj_t *damage_dots[MULTIPLAYER_COUNT][MAX_ENEMY_COUNT];
+    lv_obj_t *damage_buttons[MULTIPLAYER_COUNT][MULTIPLAYER_COUNT - 1];
     lv_obj_t *damage_values[MULTIPLAYER_COUNT][MAX_ENEMY_COUNT];
     lv_obj_t *damage_overflow[MULTIPLAYER_COUNT];
     lv_obj_t *counter_rows[MULTIPLAYER_COUNT][COUNTER_TYPE_COUNT];
@@ -123,6 +124,55 @@ static struct {
 } mp_state;
 
 static lv_timer_t *select_timeout_timer = NULL;
+static int inline_damage_target = -1;
+static int inline_damage_source = -1;
+static lv_timer_t *inline_damage_timer = NULL;
+
+void mp_commander_damage_cancel(void)
+{
+    if (inline_damage_target < 0) return;
+    damage_cancel();
+    inline_damage_target = -1;
+    inline_damage_source = -1;
+    selected_enemy = -1;
+    cmd_damage_target = -1;
+    if (inline_damage_timer != NULL) lv_timer_pause(inline_damage_timer);
+}
+
+void mp_commander_damage_finish(void)
+{
+    if (inline_damage_target < 0) return;
+    if (!player_eliminated[inline_damage_target] &&
+        !player_eliminated[inline_damage_source] && damage_pending_delta() != 0) {
+        damage_apply();
+    } else {
+        damage_cancel();
+    }
+    inline_damage_target = -1;
+    inline_damage_source = -1;
+    selected_enemy = -1;
+    cmd_damage_target = -1;
+    if (inline_damage_timer != NULL) lv_timer_pause(inline_damage_timer);
+    refresh_multiplayer_ui();
+}
+
+static void inline_damage_timeout_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    mp_commander_damage_finish();
+}
+
+bool mp_commander_damage_turn(int delta)
+{
+    if (inline_damage_target < 0) return false;
+    add_damage_to_selected_enemy(delta);
+    if (inline_damage_timer != NULL) {
+        lv_timer_reset(inline_damage_timer);
+        lv_timer_resume(inline_damage_timer);
+    }
+    refresh_multiplayer_ui();
+    return true;
+}
 
 /* ---------- small helpers ---------- */
 static const lv_font_t *get_counter_badge_font(const counter_definition_t *definition)
@@ -438,68 +488,60 @@ static void refresh_commander_damage(int panel_index, const mp_panel_spec_t *spe
     int source;
     int shown = 0;
     int remaining = 0;
-    int max_rows = (spec_is_wedge(spec) || spec->w == 180) ? 3 : MAX_ENEMY_COUNT;
     lv_coord_t x = 0;
     lv_coord_t y = -50;
 
-    for (source = 0; source < max_rows; source++) {
-        lv_obj_add_flag(mp_state.damage_dots[panel_index][source], LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(mp_state.damage_values[panel_index][source], LV_OBJ_FLAG_HIDDEN);
-    }
-    for (source = 0; source < nvs_get_num_players() && source < MAX_GAME_PLAYERS; source++) {
-        int damage = cmd_damage_totals[source][spec->player_index];
+    for (source = 0; source < mp_state.layout->panel_count; source++) {
+        int damage;
         int color_index = source;
         int panel;
+        lv_color_t button_color;
+        lv_obj_t *button;
 
-        if (source == spec->player_index || damage <= 0) continue;
-        if (shown == max_rows) {
-            remaining++;
-            continue;
-        }
+        if (source == spec->player_index) continue;
+        button = mp_state.damage_buttons[panel_index][shown];
+          damage = (inline_damage_target == spec->player_index &&
+                inline_damage_source == source && selected_enemy >= 0)
+                 ? enemies[selected_enemy].damage
+                 : cmd_damage_totals[source][spec->player_index];
         for (panel = 0; panel < mp_state.layout->panel_count; panel++) {
             if (mp_state.layout->panels[panel].player_index == source) {
                 color_index = mp_state.layout->panels[panel].color_index;
                 break;
             }
         }
-        lv_obj_set_style_bg_color(mp_state.damage_dots[panel_index][shown],
-            (source < MAX_DISPLAY_PLAYERS)
-                ? get_effective_player_color(source, color_index, LIFE_VIB_VIV)
-                : get_player_color_vib(source, LIFE_VIB_VIV), 0);
-        lv_obj_set_style_border_color(mp_state.damage_dots[panel_index][shown], text_color, 0);
+        button_color = get_effective_player_color(source, color_index, LIFE_VIB_VIV);
+        lv_obj_set_style_bg_color(button, button_color, 0);
+        lv_obj_set_style_border_color(button,
+            (inline_damage_target == spec->player_index && inline_damage_source == source)
+                ? lv_color_hex(0xFFFFFF)
+                : lv_color_hex(MP_OUTLINE_COLOR), 0);
+        lv_obj_set_style_border_width(button,
+            (inline_damage_target == spec->player_index && inline_damage_source == source) ? 3 : 1, 0);
+        lv_obj_set_style_bg_opa(button,
+            (player_eliminated[source] || player_eliminated[spec->player_index])
+                ? LV_OPA_50 : LV_OPA_COVER, 0);
         snprintf(buf, sizeof(buf), "%d", damage);
         lv_label_set_text(mp_state.damage_values[panel_index][shown], buf);
-        lv_obj_set_style_text_color(mp_state.damage_values[panel_index][shown], text_color, 0);
-        lv_obj_set_y(mp_state.damage_dots[panel_index][shown], shown * 18 + 4);
-        lv_obj_set_y(mp_state.damage_values[panel_index][shown], shown * 18);
-        lv_obj_clear_flag(mp_state.damage_dots[panel_index][shown], LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(mp_state.damage_values[panel_index][shown], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_center(mp_state.damage_values[panel_index][shown]);
+        lv_obj_set_style_text_color(mp_state.damage_values[panel_index][shown],
+                                    color_is_light(button_color) ? lv_color_black() : lv_color_white(), 0);
+        lv_obj_set_x(button, 4);
+        lv_obj_set_y(button, shown * 34);
         shown++;
     }
 
-    if (shown == 0) {
-        lv_obj_add_flag(group, LV_OBJ_FLAG_HIDDEN);
-        return;
+    for (source = mp_state.layout->panel_count; source < nvs_get_num_players(); source++) {
+        if (cmd_damage_totals[source][spec->player_index] > 0) remaining++;
     }
     if (remaining > 0) {
         snprintf(buf, sizeof(buf), "+%d", remaining);
         lv_label_set_text(mp_state.damage_overflow[panel_index], buf);
         lv_obj_set_style_text_color(mp_state.damage_overflow[panel_index], text_color, 0);
-        lv_obj_set_y(mp_state.damage_overflow[panel_index], shown * 18);
+        lv_obj_set_y(mp_state.damage_overflow[panel_index], shown * 34);
         lv_obj_clear_flag(mp_state.damage_overflow[panel_index], LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(mp_state.damage_overflow[panel_index], LV_OBJ_FLAG_HIDDEN);
-    }
-
-    if (mp_state.layout == &layout_4p && angle == 3150) {
-        int row_count = shown + (remaining > 0);
-        for (source = 0; source < shown; source++) {
-            lv_obj_set_y(mp_state.damage_dots[panel_index][source],
-                         (row_count - 1 - source) * 18 + 4);
-            lv_obj_set_y(mp_state.damage_values[panel_index][source],
-                         (row_count - 1 - source) * 18);
-        }
-        if (remaining > 0) lv_obj_set_y(mp_state.damage_overflow[panel_index], 0);
     }
 
     if (spec_is_wedge(spec)) {
@@ -507,16 +549,63 @@ static void refresh_commander_damage(int panel_index, const mp_panel_spec_t *spe
         x = wedge_polar(lv_trigo_cos((int16_t)badge_angle), 122);
         y = wedge_polar(lv_trigo_sin((int16_t)badge_angle), 122);
     } else if (spec->w == 180) {
-        x = (spec->x == 0) ? 45 : -45;
-        y = (spec->y == 0) ? 40 : -40;
+        x = (spec->x == 0) ? 63 : -63;
+        y = (spec->y == 0) ? -17 : 17;
+        if (mp_state.layout == &layout_4p && spec->player_index >= 2) x += 5;
     } else {
         x = 110;
         y = 0;
     }
 
-    lv_obj_set_height(group, (shown + (remaining > 0)) * 18);
+    if (mp_state.layout == &layout_4p &&
+        nvs_get_orientation() == ORIENTATION_MODE_CENTRIC) {
+        static const int8_t source_slot[MULTIPLAYER_COUNT][MULTIPLAYER_COUNT] = {
+            {-1, 0, 1, 2},
+            { 0,-1, 2, 1},
+            { 1, 2,-1, 0},
+            { 2, 1, 0,-1},
+        };
+        static const lv_coord_t slot_x[] = {-41, 36, 46}; // { left, top, right }
+        static const lv_coord_t slot_y[] = {-32, -19, 46}; // { left, top, right }
+        lv_obj_t *life = mp_state.life_labels[panel_index];
+        lv_coord_t life_x = lv_obj_get_x(life) + lv_obj_get_width(life) / 2;
+        lv_coord_t life_y = lv_obj_get_y(life) + lv_obj_get_height(life) / 2;
+        bool top = spec->y == 0;
+        int row = 0;
+
+        lv_obj_set_size(group, spec->w, spec->h);
+        lv_obj_set_align(group, LV_ALIGN_TOP_LEFT);
+        lv_obj_set_pos(group, 0, 0);
+        apply_object_rotation(group, 0, 0, 0);
+        for (source = 0; source < MULTIPLAYER_COUNT; source++) {
+            lv_obj_t *button;
+            int slot;
+            lv_coord_t button_x;
+            lv_coord_t button_y;
+
+            if (source == spec->player_index) continue;
+            button = mp_state.damage_buttons[panel_index][row++];
+            slot = source_slot[spec->player_index][source];
+            button_x = life_x + (spec->x == 0 ? slot_x[slot] : -slot_x[slot]);
+            button_y = life_y + (top ? -slot_y[slot] : slot_y[slot]);
+            if (top) button_y += 20;
+            lv_obj_set_pos(button, button_x - lv_obj_get_width(button) / 2,
+                          button_y - lv_obj_get_height(button) / 2);
+            apply_object_rotation(button, angle, 0, 0);
+        }
+        lv_obj_set_pos(mp_state.damage_overflow[panel_index], 18, top ? 155 : 8);
+        apply_object_rotation(mp_state.damage_overflow[panel_index], angle, 0, 0);
+        return;
+    }
+
+    lv_obj_set_size(group, 56, (shown + (remaining > 0)) * 34);
     lv_obj_align(group, LV_ALIGN_CENTER, x, y);
-    apply_object_rotation(group, angle, 0, 0);
+    apply_object_rotation(group, angle,
+                          (mp_state.layout == &layout_4p && angle == 1800) ? -3 : 0, 0);
+    for (source = 0; source < shown; source++) {
+        apply_object_rotation(mp_state.damage_buttons[panel_index][source], 0, 0, 0);
+    }
+    apply_object_rotation(mp_state.damage_overflow[panel_index], 0, 0, 0);
     lv_obj_clear_flag(group, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -656,11 +745,19 @@ void refresh_multiplayer_ui(void)
             if (life_lbl != NULL) {
                 lv_obj_clear_flag(life_lbl, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_set_style_text_font(life_lbl, life_font, 0);
-                lv_obj_align(life_lbl, LV_ALIGN_CENTER, bx, by - life_pivot_y);
+                lv_coord_t label_x = bx;
+                if (orientation_mode != ORIENTATION_MODE_CENTRIC) {
+                    label_x += (spec->player_index < 2) ? -15 : 15;
+                }
+                lv_obj_align(life_lbl, LV_ALIGN_CENTER, label_x, by - life_pivot_y);
             }
             if (name_lbl != NULL) {
                 lv_obj_clear_flag(name_lbl, LV_OBJ_FLAG_HIDDEN);
-                lv_obj_align(name_lbl, LV_ALIGN_CENTER, bx, by + 30);
+                lv_coord_t label_x = bx;
+                if (orientation_mode != ORIENTATION_MODE_CENTRIC) {
+                    label_x += (spec->player_index < 2) ? -15 : 15;
+                }
+                lv_obj_align(name_lbl, LV_ALIGN_CENTER, label_x, by + 30);
             }
             apply_label_rotation(life_lbl, name_lbl, angle, life_pivot_y, -30);
         } else {
@@ -710,6 +807,41 @@ void refresh_multiplayer_timer_ui(void)
 }
 
 /* ---------- events ---------- */
+static void event_inline_damage_select(lv_event_t *e)
+{
+    int id = (int)(intptr_t)lv_event_get_user_data(e) - 1;
+    int target = id / MAX_GAME_PLAYERS;
+    int source = id % MAX_GAME_PLAYERS;
+
+    if (target >= nvs_get_players_to_track() || source >= nvs_get_num_players() ||
+        player_eliminated[target] || player_eliminated[source]) return;
+
+    if (player_selection_animation_active()) stop_player_selection_animation();
+    if (life_preview_active) life_preview_commit_cb(NULL);
+    selection_clear();
+    select_kick_timer();
+
+    if (inline_damage_target >= 0) {
+        bool same_button = (inline_damage_target == target && inline_damage_source == source);
+        mp_commander_damage_finish();
+        if (same_button) return;
+    }
+
+    prepare_cmd_damage_for_player(target);
+    selected_enemy = (source < target) ? source : source - 1;
+    damage_enter();
+    inline_damage_target = target;
+    inline_damage_source = source;
+    if (inline_damage_timer == NULL) {
+        inline_damage_timer = lv_timer_create(inline_damage_timeout_cb, 3000, NULL);
+    }
+    if (inline_damage_timer != NULL) {
+        lv_timer_reset(inline_damage_timer);
+        lv_timer_resume(inline_damage_timer);
+    }
+    refresh_multiplayer_ui();
+}
+
 static void event_multiplayer_select(lv_event_t *e)
 {
     int player = (int)(intptr_t)lv_event_get_user_data(e);
@@ -718,6 +850,7 @@ static void event_multiplayer_select(lv_event_t *e)
 
     if (player < 0 || player >= MULTIPLAYER_COUNT) return;
     if (player_eliminated[player]) return;
+    mp_commander_damage_finish();
 
     /* A tap during the first-player roulette stops the spin and leaves
        nothing selected (the spinning highlight is not a real selection). */
@@ -770,6 +903,7 @@ static void event_multiplayer_open_menu(lv_event_t *e)
     int player = (int)(intptr_t)lv_event_get_user_data(e);
 
     if (player < 0 || player >= MULTIPLAYER_COUNT) return;
+    mp_commander_damage_finish();
 
     if (player_selection_animation_active()) {
         stop_player_selection_animation();
@@ -888,7 +1022,7 @@ static void event_wedge_separators(lv_event_t *e)
     int s;
 
     lv_draw_line_dsc_init(&dsc);
-    dsc.color = lv_color_black();
+    dsc.color = lv_color_hex(MP_OUTLINE_COLOR);
     dsc.width = 2;
     for (s = 0; s < wedge_sep_count; s++) {
         lv_draw_line(draw_ctx, &dsc, &sep_center, &wedge_sep_ends[s]);
@@ -902,6 +1036,7 @@ void rebuild_multiplayer_layout(int track)
     int i;
 
     if (screen_multiplayer == NULL) return;
+    mp_commander_damage_cancel();
 
     if (mp_battery_icon != NULL) {
         battery_icon_unregister(mp_battery_icon);
@@ -943,7 +1078,7 @@ void rebuild_multiplayer_layout(int track)
             lv_obj_add_event_cb(panel, event_wedge_panel, LV_EVENT_HIT_TEST, (void *)(intptr_t)i);
         } else {
             lv_obj_set_style_border_width(panel, 1, 0);
-            lv_obj_set_style_border_color(panel, lv_color_black(), 0);
+            lv_obj_set_style_border_color(panel, lv_color_hex(MP_OUTLINE_COLOR), 0);
         }
         lv_obj_add_event_cb(panel, event_multiplayer_select, LV_EVENT_SHORT_CLICKED, (void *)(intptr_t)p);
         lv_obj_add_event_cb(panel, event_multiplayer_open_menu, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)p);
@@ -963,26 +1098,28 @@ void rebuild_multiplayer_layout(int track)
         lv_obj_align(life_lbl, LV_ALIGN_CENTER, 0, -10);
         mp_state.life_labels[i] = life_lbl;
 
-        mp_state.damage_groups[i] = make_plain_box(panel, 56, 18);
-        lv_obj_add_flag(mp_state.damage_groups[i], LV_OBJ_FLAG_HIDDEN);
-        int max_rows = (spec_is_wedge(spec) || spec->w == 180) ? 3 : MAX_ENEMY_COUNT;
-        for (int source = 0; source < max_rows; source++) {
-            lv_obj_t *dot = make_plain_box(mp_state.damage_groups[i], 10, 10);
-            lv_obj_set_pos(dot, 0, source * 18 + 4);
-            lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
-            lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
-            lv_obj_set_style_border_width(dot, 1, 0);
-            lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
-            mp_state.damage_dots[i][source] = dot;
-
-            mp_state.damage_values[i][source] = lv_label_create(mp_state.damage_groups[i]);
-            lv_obj_set_style_text_font(mp_state.damage_values[i][source], &lv_font_beleren_bold_14, 0);
-            lv_obj_set_pos(mp_state.damage_values[i][source], 14, source * 18);
-            lv_obj_add_flag(mp_state.damage_values[i][source], LV_OBJ_FLAG_HIDDEN);
+        mp_state.damage_groups[i] = make_plain_box(panel, 56, 34);
+        int row = 0;
+        for (int source = 0; source < layout->panel_count; source++) {
+            lv_obj_t *button;
+            if (source == p) continue;
+            button = make_plain_box(mp_state.damage_groups[i], 43, 28);
+            lv_obj_set_pos(button, 4, row * 34);
+            lv_obj_set_style_radius(button, 6, 0);
+            lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
+            lv_obj_set_style_border_width(button, 1, 0);
+            lv_obj_add_flag(button, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_add_event_cb(button, event_inline_damage_select, LV_EVENT_SHORT_CLICKED,
+                                (void *)(intptr_t)(p * MAX_GAME_PLAYERS + source + 1));
+            mp_state.damage_buttons[i][row] = button;
+            mp_state.damage_values[i][row] = lv_label_create(button);
+            lv_obj_set_style_text_font(mp_state.damage_values[i][row], &lv_font_beleren_bold_14, 0);
+            lv_obj_center(mp_state.damage_values[i][row]);
+            row++;
         }
         mp_state.damage_overflow[i] = lv_label_create(mp_state.damage_groups[i]);
         lv_obj_set_style_text_font(mp_state.damage_overflow[i], &lv_font_beleren_bold_14, 0);
-        lv_obj_set_x(mp_state.damage_overflow[i], 14);
+        lv_obj_set_x(mp_state.damage_overflow[i], 10);
         lv_obj_add_flag(mp_state.damage_overflow[i], LV_OBJ_FLAG_HIDDEN);
 
         create_counter_row(panel, COUNTER_TYPE_COMMANDER_TAX,

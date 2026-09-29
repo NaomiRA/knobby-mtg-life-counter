@@ -28,6 +28,8 @@ Go to https://knobby-mtg.github.io/knobby-mtg-life-counter/ to install the lates
 
 Swipe inward from any edge on a player screen to open the menu, and swipe down or in from the right edge to close a menu or go back.
 
+In multiplayer, tap a colored commander-damage button on a player's segment, then turn the knob to change the damage from that commander. The change applies after a short pause or when you tap elsewhere. Use the player menu to edit damage from commanders not shown on the segment.
+
 For how-to guides and additional documentation, see the [wiki](https://github.com/knobby-mtg/knobby-mtg-life-counter/wiki).
 
 ## ⚙️ Hardware

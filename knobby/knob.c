@@ -295,6 +295,7 @@ void knob_swipe_hint_update(int start_x, int start_y, int cur_x, int cur_y)
 static void open_menu_for_screen(lv_obj_t *screen)
 {
     if (is_player_screen(screen)) {
+        if (screen == screen_multiplayer) mp_commander_damage_finish();
         previous_screen = screen;
         open_quad_menu();
     }
@@ -362,6 +363,7 @@ static void handle_back_navigation(lv_obj_t *screen)
 // ---------- reset ----------
 void reset_all_values(void)
 {
+    mp_commander_damage_cancel();
     knob_life_reset();
 
     brightness_percent = nvs_get_brightness();
@@ -497,8 +499,8 @@ static void handle_knob_event(knob_event_t k)
     }
     else if (lv_scr_act() == screen_multiplayer)
     {
-        if (k == KNOB_LEFT)      change_player_life(-1);
-        else if (k == KNOB_RIGHT) change_player_life(+1);
+        if (k == KNOB_LEFT && !mp_commander_damage_turn(-1)) change_player_life(-1);
+        else if (k == KNOB_RIGHT && !mp_commander_damage_turn(+1)) change_player_life(+1);
     }
     else if (lv_scr_act() == screen_player_all_damage)
     {
