@@ -12,6 +12,9 @@ void rebuild_multiplayer_layout(int track);
 
 void refresh_multiplayer_ui(void);
 void refresh_multiplayer_timer_ui(void);
+bool mp_commander_damage_turn(int delta);
+void mp_commander_damage_finish(void);
+void mp_commander_damage_cancel(void);
 
 int mp_player_seat_rotation(int player);
 
