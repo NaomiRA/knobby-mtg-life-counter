@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 116 px
  * Bpp: 4
- * Opts: --font Montserrat-Bold.ttf --bpp 4 --size 116 --range 0x20,0x2B,0x2D,0x30-0x39,0x3D --format lvgl --no-compress --lv-include lvgl.h -o ../src/fonts/lv_font_montserrat_bold_116.c
+ * Opts: --font Montserrat-Bold.ttf --bpp 4 --size 116 --range 0x20,0x2B,0x2D,0x30-0x39,0x3D --format lvgl --no-compress --lv-include lvgl.h -o lv_font_montserrat_bold_116.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
