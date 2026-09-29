@@ -18,7 +18,8 @@ This installs the ESP32 Arduino core and LVGL 8.3.11, which the simulator compil
 
 ```bash
 make screenshot                          # main screen with defaults
-make screenshot ARGS="--screen dice"     # specific screen
+make screenshot ARGS="--screen dice"     # Dice picker
+make screenshot ARGS="--screen dice-result --dice 1,2,3,4,5,6,7,8,9,20"
 ```
 
 ### Full test matrix
