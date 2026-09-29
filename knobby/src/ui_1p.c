@@ -57,16 +57,14 @@ static void refresh_ring(void)
 void refresh_turn_ui(void)
 {
     char buf[48];
-    uint32_t total_seconds = get_turn_elapsed_ms() / 1000;
-    uint32_t hours = total_seconds / 3600;
-    uint32_t minutes = (total_seconds % 3600) / 60;
+    char elapsed_buf[16];
+
+    format_timer_elapsed(elapsed_buf, sizeof(elapsed_buf));
 
     if (turn_number <= 0) {
-        snprintf(buf, sizeof(buf), "turn  %lu:%02lu",
-                 (unsigned long)hours, (unsigned long)minutes);
+        snprintf(buf, sizeof(buf), "turn  %s", elapsed_buf);
     } else {
-        snprintf(buf, sizeof(buf), "turn %d  %lu:%02lu",
-                 turn_number, (unsigned long)hours, (unsigned long)minutes);
+        snprintf(buf, sizeof(buf), "turn %d  %s", turn_number, elapsed_buf);
     }
     lv_label_set_text(label_turn, buf);
 
@@ -75,7 +73,7 @@ void refresh_turn_ui(void)
     }
 
     if (turn_container != NULL) {
-        if (turn_ui_visible) {
+        if (turn_ui_visible && nvs_get_timer_mode() != TIMER_MODE_OFF) {
             lv_obj_clear_flag(turn_container, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(turn_container, LV_OBJ_FLAG_HIDDEN);

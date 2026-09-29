@@ -33,6 +33,12 @@
 #define ORIENTATION_MODE_TABLETOP 2
 #define ORIENTATION_MODE_COUNT    3
 
+// ---------- game timer modes ----------
+#define TIMER_MODE_TURN  0
+#define TIMER_MODE_TOTAL 1
+#define TIMER_MODE_OFF   2
+#define TIMER_MODE_COUNT 3
+
 // ---------- display rotation (physical, degrees = value * 90) ----------
 #define DISPLAY_ROTATION_COUNT 4
 

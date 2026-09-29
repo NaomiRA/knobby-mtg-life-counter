@@ -4,6 +4,7 @@
 #include "game.h"
 #include "storage.h"
 #include "hw.h"
+#include "timer.h"
 
 static lv_obj_t *add_low_battery_icon(lv_obj_t *parent)
 {
@@ -114,6 +115,10 @@ static struct {
     lv_obj_t *damage_overflow[MULTIPLAYER_COUNT];
     lv_obj_t *counter_rows[MULTIPLAYER_COUNT][COUNTER_TYPE_COUNT];
     lv_obj_t *counter_values[MULTIPLAYER_COUNT][COUNTER_TYPE_COUNT];
+    lv_obj_t *timer_circle;
+    lv_obj_t *timer_player_dot;
+    lv_obj_t *timer_turn_label;
+    lv_obj_t *timer_elapsed_label;
     const mp_layout_spec_t *layout;
 } mp_state;
 
@@ -668,6 +673,40 @@ void refresh_multiplayer_ui(void)
         refresh_commander_damage(i, spec,
                      wedge_geom[i].bis_deg, angle, text_color);
     }
+
+    refresh_multiplayer_timer_ui();
+}
+
+void refresh_multiplayer_timer_ui(void)
+{
+    char turn_buf[16];
+    char elapsed_buf[16];
+    int color_index = turn_player_index;
+    int i;
+
+    if (mp_state.timer_circle == NULL) return;
+
+    if (!turn_ui_visible || nvs_get_timer_mode() == TIMER_MODE_OFF) {
+        lv_obj_add_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
+    if (mp_state.layout != NULL) {
+        for (i = 0; i < mp_state.layout->panel_count; i++) {
+            if (mp_state.layout->panels[i].player_index == turn_player_index) {
+                color_index = mp_state.layout->panels[i].color_index;
+                break;
+            }
+        }
+    }
+
+    lv_obj_set_style_bg_color(mp_state.timer_player_dot,
+        get_effective_player_color(turn_player_index, color_index, LIFE_VIB_VIV), 0);
+    snprintf(turn_buf, sizeof(turn_buf), "Turn %d", turn_number);
+    format_timer_elapsed(elapsed_buf, sizeof(elapsed_buf));
+    lv_label_set_text(mp_state.timer_turn_label, turn_buf);
+    lv_label_set_text(mp_state.timer_elapsed_label, elapsed_buf);
+    lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
 }
 
 /* ---------- events ---------- */
@@ -967,6 +1006,38 @@ void rebuild_multiplayer_layout(int track)
         lv_obj_set_pos(sep, 0, 0);
         lv_obj_add_event_cb(sep, event_wedge_separators, LV_EVENT_DRAW_MAIN, NULL);
     }
+
+    mp_state.timer_circle = lv_btn_create(screen_multiplayer);
+    lv_obj_remove_style_all(mp_state.timer_circle);
+    lv_obj_set_size(mp_state.timer_circle, 96, 96);
+    lv_obj_align(mp_state.timer_circle, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_radius(mp_state.timer_circle, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(mp_state.timer_circle, lv_color_hex(0x171717), 0);
+    lv_obj_set_style_bg_opa(mp_state.timer_circle, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(mp_state.timer_circle, 2, 0);
+    lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
+    lv_obj_set_style_pad_all(mp_state.timer_circle, 4, 0);
+    lv_obj_add_event_cb(mp_state.timer_circle, event_turn_tap, LV_EVENT_CLICKED, NULL);
+
+    mp_state.timer_turn_label = lv_label_create(mp_state.timer_circle);
+    lv_obj_set_style_text_color(mp_state.timer_turn_label, lv_color_white(), 0);
+    lv_obj_set_style_text_font(mp_state.timer_turn_label, &lv_font_beleren_bold_16, 0);
+    lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 6, -12);
+
+    mp_state.timer_player_dot = lv_obj_create(mp_state.timer_circle);
+    lv_obj_remove_style_all(mp_state.timer_player_dot);
+    lv_obj_set_size(mp_state.timer_player_dot, 10, 10);
+    lv_obj_set_style_radius(mp_state.timer_player_dot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(mp_state.timer_player_dot, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(mp_state.timer_player_dot, 1, 0);
+    lv_obj_set_style_border_color(mp_state.timer_player_dot, lv_color_white(), 0);
+    lv_obj_align(mp_state.timer_player_dot, LV_ALIGN_CENTER, -28, -12);
+
+    mp_state.timer_elapsed_label = lv_label_create(mp_state.timer_circle);
+    lv_obj_set_style_text_color(mp_state.timer_elapsed_label, lv_color_hex(0xB8B8B8), 0);
+    lv_obj_set_style_text_font(mp_state.timer_elapsed_label, &lv_font_beleren_bold_22, 0);
+    lv_obj_align(mp_state.timer_elapsed_label, LV_ALIGN_CENTER, 0, 13);
+    refresh_multiplayer_timer_ui();
 
     mp_battery_icon = add_low_battery_icon(screen_multiplayer);
 

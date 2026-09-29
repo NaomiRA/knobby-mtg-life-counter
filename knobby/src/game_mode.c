@@ -14,7 +14,7 @@ lv_obj_t *screen_custom_life = NULL;
 
 // ---------- dynamic labels ----------
 static lv_obj_t *label_gm_num_players = NULL;
-static lv_obj_t *label_gm_players_to_track = NULL;
+static lv_obj_t *label_gm_timer_mode = NULL;
 static lv_obj_t *label_gm_life_total = NULL;
 
 // ---------- custom life widgets ----------
@@ -22,22 +22,28 @@ static lv_obj_t *label_custom_life_value = NULL;
 
 // ---------- temp settings (applied on Apply) ----------
 static int temp_num_players;
-static int temp_players_to_track;
+static int temp_timer_mode;
 static int temp_life_total;
+
+static const char *get_timer_mode_name(int mode)
+{
+    switch (mode) {
+        case TIMER_MODE_TOTAL: return "Total Elapsed";
+        case TIMER_MODE_OFF: return "OFF";
+        default: return "Turn-based";
+    }
+}
 
 // ---------- refresh ----------
 void refresh_game_mode_menu_ui(void)
 {
     char buf[32];
-    int max_track;
 
     snprintf(buf, sizeof(buf), "Players\n%d", temp_num_players);
     lv_label_set_text(label_gm_num_players, buf);
 
-    max_track = temp_num_players < MAX_DISPLAY_PLAYERS ? temp_num_players : MAX_DISPLAY_PLAYERS;
-    if (temp_players_to_track > max_track) temp_players_to_track = max_track;
-    snprintf(buf, sizeof(buf), "Track\n%d", temp_players_to_track);
-    lv_label_set_text(label_gm_players_to_track, buf);
+    snprintf(buf, sizeof(buf), "Timer\n%s", get_timer_mode_name(temp_timer_mode));
+    lv_label_set_text(label_gm_timer_mode, buf);
 
     snprintf(buf, sizeof(buf), "Life\n%d", temp_life_total);
     lv_label_set_text(label_gm_life_total, buf);
@@ -54,7 +60,7 @@ void refresh_custom_life_ui(void)
 void open_game_mode_menu(void)
 {
     temp_num_players = nvs_get_num_players();
-    temp_players_to_track = nvs_get_players_to_track();
+    temp_timer_mode = nvs_get_timer_mode();
     temp_life_total = nvs_get_life_total();
     refresh_game_mode_menu_ui();
     lv_scr_load(screen_game_mode_menu);
@@ -72,26 +78,19 @@ void change_custom_life(int delta)
 // ---------- events ----------
 static void event_gm_num_players(lv_event_t *e)
 {
-    int max_track;
     (void)e;
 
     temp_num_players++;
-    if (temp_num_players > MAX_GAME_PLAYERS) temp_num_players = 1;
-
-    max_track = temp_num_players < MAX_DISPLAY_PLAYERS ? temp_num_players : MAX_DISPLAY_PLAYERS;
-    if (temp_players_to_track > max_track) temp_players_to_track = max_track;
+    if (temp_num_players > MAX_DISPLAY_PLAYERS) temp_num_players = 1;
 
     refresh_game_mode_menu_ui();
 }
 
-static void event_gm_players_to_track(lv_event_t *e)
+static void event_gm_timer_mode(lv_event_t *e)
 {
-    int max_track;
     (void)e;
 
-    max_track = temp_num_players < MAX_DISPLAY_PLAYERS ? temp_num_players : MAX_DISPLAY_PLAYERS;
-    temp_players_to_track++;
-    if (temp_players_to_track > max_track) temp_players_to_track = 1;
+    temp_timer_mode = (temp_timer_mode + 1) % TIMER_MODE_COUNT;
 
     refresh_game_mode_menu_ui();
 }
@@ -127,11 +126,11 @@ static void event_gm_apply(lv_event_t *e)
        not synced.) */
     net_sync_leave_game();
     nvs_set_num_players(temp_num_players);
-    nvs_set_players_to_track(temp_players_to_track);
+    nvs_set_timer_mode(temp_timer_mode);
     nvs_set_life_total(temp_life_total);
     settings_save();
     reset_all_values();
-    rebuild_multiplayer_layout(temp_players_to_track);
+    rebuild_multiplayer_layout(temp_num_players);
     back_to_main();
     lv_indev_wait_release(lv_indev_get_act());
 }
@@ -143,7 +142,7 @@ void build_game_mode_menu_screen(void)
 
     quad_item_t items[4] = {
         {"Players\n4",          event_gm_num_players,      true, LV_EVENT_CLICKED},
-        {"Track\n1",            event_gm_players_to_track, true, LV_EVENT_CLICKED},
+        {"Timer\nTurn",         event_gm_timer_mode,       true, LV_EVENT_CLICKED},
         {"Life\n40",            event_gm_life_cycle,       true, LV_EVENT_SHORT_CLICKED},
         {"Apply\n(Hold)",       event_gm_apply,            true, LV_EVENT_LONG_PRESSED},
     };
@@ -153,7 +152,7 @@ void build_game_mode_menu_screen(void)
     btn = lv_obj_get_child(screen_game_mode_menu, 0);
     label_gm_num_players = lv_obj_get_child(btn, 0);
     btn = lv_obj_get_child(screen_game_mode_menu, 1);
-    label_gm_players_to_track = lv_obj_get_child(btn, 0);
+    label_gm_timer_mode = lv_obj_get_child(btn, 0);
     btn = lv_obj_get_child(screen_game_mode_menu, 2);
     label_gm_life_total = lv_obj_get_child(btn, 0);
 

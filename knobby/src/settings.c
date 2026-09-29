@@ -17,6 +17,7 @@
 // Forward declarations for cross-module calls
 extern void reset_all_values(void);
 extern void back_to_main(void);
+extern void refresh_turn_ui(void);
 
 // ---------- screens ----------
 lv_obj_t *screen_quad_menu = NULL;
@@ -32,6 +33,24 @@ static lv_obj_t *label_settings_hint = NULL;
 static lv_obj_t *label_settings_battery = NULL;
 static lv_obj_t *label_settings_battery_detail = NULL;
 static lv_obj_t *label_rotate_value = NULL;
+static lv_obj_t *label_tool_timer = NULL;
+static int preview_timer_mode = TIMER_MODE_TURN;
+
+static void refresh_tool_timer_label(void)
+{
+    char buf[24];
+    const char *mode_name;
+
+    if (label_tool_timer == NULL) return;
+
+    switch (preview_timer_mode) {
+        case TIMER_MODE_TOTAL: mode_name = "Total Elapsed"; break;
+        case TIMER_MODE_OFF: mode_name = "OFF"; break;
+        default: mode_name = "Turn-based"; break;
+    }
+    snprintf(buf, sizeof(buf), "Timer\n%s", mode_name);
+    lv_label_set_text(label_tool_timer, buf);
+}
 
 // ---------- quadrant menu builder ----------
 void build_quad_screen(lv_obj_t **screen, quad_item_t items[4])
@@ -621,7 +640,32 @@ int settings_item_page(const char *id)
 static void event_quad_tools(lv_event_t *e)
 {
     (void)e;
+    preview_timer_mode = nvs_get_timer_mode();
+    refresh_tool_timer_label();
     lv_scr_load(screen_tools_menu);
+}
+
+static void event_tool_timer_cycle(lv_event_t *e)
+{
+    (void)e;
+    preview_timer_mode = (preview_timer_mode + 1) % TIMER_MODE_COUNT;
+    refresh_tool_timer_label();
+}
+
+static void event_tool_timer_confirm(lv_event_t *e)
+{
+    (void)e;
+
+    nvs_set_timer_mode(preview_timer_mode);
+    settings_save();
+    if (!turn_timer_enabled) {
+        turn_timer_start_fresh_for_player(0);
+    } else {
+        refresh_turn_ui();
+        refresh_multiplayer_timer_ui();
+    }
+    back_to_main();
+    lv_indev_wait_release(lv_indev_get_act());
 }
 
 static void event_general_game_mode(lv_event_t *e)
@@ -647,6 +691,9 @@ static void event_general_reset(lv_event_t *e)
 // ---------- screen builders ----------
 void build_quad_menus(void)
 {
+    lv_obj_t *timer_btn;
+    lv_obj_t *timer_hint;
+
     quad_item_t main_items[4] = {
         {"Settings", event_quad_screen_settings, true, LV_EVENT_CLICKED},
         {"Game\nMode", event_general_game_mode, true, LV_EVENT_CLICKED},
@@ -657,11 +704,21 @@ void build_quad_menus(void)
 
     quad_item_t tools_items[4] = {
         {"Dice",        event_tool_dice, true, LV_EVENT_CLICKED},
-        {"Timer",       event_tool_timer, true, LV_EVENT_CLICKED},
+        {"Timer\nTurn", event_tool_timer_cycle, true, LV_EVENT_SHORT_CLICKED},
         {"Event\nLog",  event_open_damage_log, true, LV_EVENT_CLICKED},
         {"Mana\nPool",  event_tool_mana, true, LV_EVENT_CLICKED},
     };
     build_quad_screen(&screen_tools_menu, tools_items);
+    timer_btn = lv_obj_get_child(screen_tools_menu, 1);
+    label_tool_timer = lv_obj_get_child(timer_btn, 0);
+    lv_obj_add_event_cb(timer_btn, event_tool_timer_confirm, LV_EVENT_LONG_PRESSED, NULL);
+    timer_hint = lv_label_create(timer_btn);
+    lv_label_set_text(timer_hint, "(Hold to apply)");
+    lv_obj_set_style_text_color(timer_hint, lv_color_hex(0x888888), 0);
+    lv_obj_set_style_text_font(timer_hint, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_align(timer_hint, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(timer_hint, LV_ALIGN_CENTER, -10, 50);
+    refresh_tool_timer_label();
 
     build_settings_pages();
 }

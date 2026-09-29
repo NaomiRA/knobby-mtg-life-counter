@@ -8,6 +8,7 @@ typedef struct {
     int8_t   source;       // source for cmd damage or counter type, -1 if N/A
     uint8_t  event_type;   // log_event_type_t
     int16_t  delta;
+    uint32_t turn_duration_ms;
 } damage_log_entry_t;
 
 static damage_log_entry_t damage_log[DAMAGE_LOG_MAX];
@@ -37,6 +38,23 @@ void damage_log_add(int player, int delta, uint8_t event_type, int source)
     damage_log[damage_log_head].source     = (int8_t)source;
     damage_log[damage_log_head].event_type = event_type;
     damage_log[damage_log_head].delta      = (int16_t)delta;
+    damage_log_head = (damage_log_head + 1) % DAMAGE_LOG_MAX;
+    if (damage_log_count < DAMAGE_LOG_MAX) damage_log_count++;
+}
+
+void damage_log_add_turn(int player, uint32_t duration_ms)
+{
+    damage_log_entry_t *entry;
+
+    if (player < 0 || player >= MAX_DISPLAY_PLAYERS) return;
+
+    entry = &damage_log[damage_log_head];
+    entry->timestamp_ms = lv_tick_get();
+    entry->player = (int8_t)player;
+    entry->source = -1;
+    entry->event_type = LOG_EVT_TURN;
+    entry->delta = 0;
+    entry->turn_duration_ms = duration_ms;
     damage_log_head = (damage_log_head + 1) % DAMAGE_LOG_MAX;
     if (damage_log_count < DAMAGE_LOG_MAX) damage_log_count++;
 }
@@ -162,6 +180,14 @@ static void format_log_line(damage_log_entry_t *entry, char *buf, size_t buf_sz)
                  player_names[entry->source],
                  abs_delta,
                  player_names[entry->player]);
+    } else if (entry->event_type == LOG_EVT_TURN && entry->player >= 0 &&
+               entry->player < MAX_DISPLAY_PLAYERS) {
+        uint32_t duration_s = entry->turn_duration_ms / 1000;
+        snprintf(buf, buf_sz, "%s: %s turn %lu:%02lu",
+                 time_str,
+                 player_names[entry->player],
+                 (unsigned long)(duration_s / 60),
+                 (unsigned long)(duration_s % 60));
     } else if (entry->event_type == LOG_EVT_COUNTER && entry->source >= 0 &&
                entry->player >= 0 && entry->player < MAX_GAME_PLAYERS) {
         const counter_definition_t *definition = get_counter_definition((counter_type_t)entry->source);
@@ -267,6 +293,8 @@ static void refresh_damage_log_ui(void)
             const counter_definition_t *definition = get_counter_definition((counter_type_t)damage_log[idx].source);
             lv_obj_set_style_text_color(lbl,
                 definition != NULL ? lv_color_hex(definition->accent_color) : lv_color_hex(0xFFB74D), 0);
+        } else if (damage_log[idx].event_type == LOG_EVT_TURN) {
+            lv_obj_set_style_text_color(lbl, lv_color_hex(0x29B6F6), 0);
         } else {
             lv_obj_set_style_text_color(lbl,
                 damage_log[idx].delta > 0 ? lv_color_hex(0x4CAF50) : lv_color_hex(0xFF5252), 0);

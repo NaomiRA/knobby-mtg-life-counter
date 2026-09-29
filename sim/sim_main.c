@@ -378,7 +378,16 @@ int main(int argc, char *argv[])
     int mana_delta_set = 0;
     int i;
 
-    srand((unsigned int)time(NULL));
+    {
+        struct timespec seed_time;
+        unsigned int seed = (unsigned int)time(NULL);
+
+        if (timespec_get(&seed_time, TIME_UTC) == TIME_UTC) {
+            seed ^= (unsigned int)seed_time.tv_nsec;
+            seed ^= (unsigned int)seed_time.tv_sec;
+        }
+        srand(seed);
+    }
 
     int print_settings_pages = 0;
 

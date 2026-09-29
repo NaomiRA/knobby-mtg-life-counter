@@ -13,7 +13,7 @@ static int cached_orientation = ORIENTATION_MODE_ABSOLUTE;
 static int cached_display_rotation = 0; /* physical rotation, degrees = value * 90 */
 static int cached_menu_facing = 0; /* 0=Fixed (default), 1=Face Player */
 static int cached_num_players = 4;
-static int cached_players_to_track = 1;
+static int cached_timer_mode = TIMER_MODE_TURN;
 static int cached_life_total = DEFAULT_LIFE_TOTAL;
 static int cached_auto_eliminate = 1; /* 1=ON (default), 0=OFF */
 static int cached_random_first = 1; /* 1=ON (default): random first-player pick on reset */
@@ -38,7 +38,7 @@ void knob_nvs_init(void)
         int8_t rot_val = 0;
         int8_t dr_val = 0;
         int8_t np_val = 4;
-        int8_t pt_val = 1;
+        int8_t tm_val = TIMER_MODE_TURN;
         int16_t lt_val = DEFAULT_LIFE_TOTAL;
 
         nvs_get_i8(handle, "auto_dim", &dim_val);
@@ -48,7 +48,7 @@ void knob_nvs_init(void)
         nvs_get_i8(handle, "rotation", &rot_val);
         nvs_get_i8(handle, "disp_rot", &dr_val);
         nvs_get_i8(handle, "num_players", &np_val);
-        nvs_get_i8(handle, "track", &pt_val);
+        nvs_get_i8(handle, "timer_mode", &tm_val);
         nvs_get_i16(handle, "life_total", &lt_val);
 
         cached_auto_dim = (dim_val < 0) ? AUTO_DIM_OFF : (dim_val >= AUTO_DIM_COUNT) ? AUTO_DIM_OFF : dim_val;
@@ -59,12 +59,9 @@ void knob_nvs_init(void)
                                    : rot_val;
         cached_display_rotation = (dr_val < 0 || dr_val >= DISPLAY_ROTATION_COUNT) ? 0 : dr_val;
         cached_brightness = clamp_brightness(bri_val);
-        cached_num_players = (np_val < 1) ? 1 : (np_val > MAX_GAME_PLAYERS) ? MAX_GAME_PLAYERS : np_val;
-        cached_players_to_track = (pt_val < 1) ? 1 : (pt_val > MAX_DISPLAY_PLAYERS) ? MAX_DISPLAY_PLAYERS : pt_val;
-        /* Every consumer assumes track <= num_players; foreign/old NVS could
-           store an inconsistent pair that the per-field clamps above allow. */
-        if (cached_players_to_track > cached_num_players)
-            cached_players_to_track = cached_num_players;
+          cached_num_players = (np_val < 1) ? 1 : (np_val > MAX_DISPLAY_PLAYERS) ? MAX_DISPLAY_PLAYERS : np_val;
+          cached_timer_mode = (tm_val < 0 || tm_val >= TIMER_MODE_COUNT)
+                                  ? TIMER_MODE_TURN : tm_val;
         cached_life_total = (lt_val < 1) ? 1 : (lt_val > LIFE_MAX) ? LIFE_MAX : lt_val;
 
         int8_t ae_val = 1;
@@ -182,18 +179,29 @@ int nvs_get_num_players(void)
 
 void nvs_set_num_players(int value)
 {
-    cached_num_players = (value < 1) ? 1 : (value > MAX_GAME_PLAYERS) ? MAX_GAME_PLAYERS : value;
+    cached_num_players = (value < 1) ? 1 : (value > MAX_DISPLAY_PLAYERS) ? MAX_DISPLAY_PLAYERS : value;
     settings_dirty = true;
 }
 
 int nvs_get_players_to_track(void)
 {
-    return cached_players_to_track;
+    return cached_num_players;
 }
 
 void nvs_set_players_to_track(int value)
 {
-    cached_players_to_track = (value < 1) ? 1 : (value > MAX_DISPLAY_PLAYERS) ? MAX_DISPLAY_PLAYERS : value;
+    nvs_set_num_players(value);
+}
+
+int nvs_get_timer_mode(void)
+{
+    return cached_timer_mode;
+}
+
+void nvs_set_timer_mode(int value)
+{
+    cached_timer_mode = (value < 0 || value >= TIMER_MODE_COUNT)
+                      ? TIMER_MODE_TURN : value;
     settings_dirty = true;
 }
 
@@ -269,7 +277,7 @@ void settings_save(void)
         nvs_set_i8(handle, "rotation", (int8_t)cached_orientation);
         nvs_set_i8(handle, "disp_rot", (int8_t)cached_display_rotation);
         nvs_set_i8(handle, "num_players", (int8_t)cached_num_players);
-        nvs_set_i8(handle, "track", (int8_t)cached_players_to_track);
+        nvs_set_i8(handle, "timer_mode", (int8_t)cached_timer_mode);
         nvs_set_i16(handle, "life_total", (int16_t)cached_life_total);
         nvs_set_i8(handle, "auto_elim", (int8_t)cached_auto_eliminate);
         nvs_set_i8(handle, "rand_first", (int8_t)cached_random_first);

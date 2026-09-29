@@ -26,6 +26,8 @@ int nvs_get_num_players(void);
 void nvs_set_num_players(int value);
 int nvs_get_players_to_track(void);
 void nvs_set_players_to_track(int value);
+int nvs_get_timer_mode(void);
+void nvs_set_timer_mode(int value);
 int nvs_get_life_total(void);
 void nvs_set_life_total(int value);
 
