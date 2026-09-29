@@ -108,6 +108,10 @@ static struct {
     lv_obj_t *panels[MULTIPLAYER_COUNT];
     lv_obj_t *life_labels[MULTIPLAYER_COUNT];
     lv_obj_t *name_labels[MULTIPLAYER_COUNT];
+    lv_obj_t *damage_groups[MULTIPLAYER_COUNT];
+    lv_obj_t *damage_dots[MULTIPLAYER_COUNT][MAX_ENEMY_COUNT];
+    lv_obj_t *damage_values[MULTIPLAYER_COUNT][MAX_ENEMY_COUNT];
+    lv_obj_t *damage_overflow[MULTIPLAYER_COUNT];
     lv_obj_t *counter_rows[MULTIPLAYER_COUNT][COUNTER_TYPE_COUNT];
     lv_obj_t *counter_values[MULTIPLAYER_COUNT][COUNTER_TYPE_COUNT];
     const mp_layout_spec_t *layout;
@@ -421,6 +425,96 @@ static void refresh_counter_rows(const mp_panel_spec_t *spec, int16_t wedge_bis,
     }
 }
 
+static void refresh_commander_damage(int panel_index, const mp_panel_spec_t *spec,
+                                     int16_t wedge_bis, int16_t angle, lv_color_t text_color)
+{
+    lv_obj_t *group = mp_state.damage_groups[panel_index];
+    char buf[16];
+    int source;
+    int shown = 0;
+    int remaining = 0;
+    int max_rows = (spec_is_wedge(spec) || spec->w == 180) ? 3 : MAX_ENEMY_COUNT;
+    lv_coord_t x = 0;
+    lv_coord_t y = -50;
+
+    for (source = 0; source < max_rows; source++) {
+        lv_obj_add_flag(mp_state.damage_dots[panel_index][source], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(mp_state.damage_values[panel_index][source], LV_OBJ_FLAG_HIDDEN);
+    }
+    for (source = 0; source < nvs_get_num_players() && source < MAX_GAME_PLAYERS; source++) {
+        int damage = cmd_damage_totals[source][spec->player_index];
+        int color_index = source;
+        int panel;
+
+        if (source == spec->player_index || damage <= 0) continue;
+        if (shown == max_rows) {
+            remaining++;
+            continue;
+        }
+        for (panel = 0; panel < mp_state.layout->panel_count; panel++) {
+            if (mp_state.layout->panels[panel].player_index == source) {
+                color_index = mp_state.layout->panels[panel].color_index;
+                break;
+            }
+        }
+        lv_obj_set_style_bg_color(mp_state.damage_dots[panel_index][shown],
+            (source < MAX_DISPLAY_PLAYERS)
+                ? get_effective_player_color(source, color_index, LIFE_VIB_VIV)
+                : get_player_color_vib(source, LIFE_VIB_VIV), 0);
+        lv_obj_set_style_border_color(mp_state.damage_dots[panel_index][shown], text_color, 0);
+        snprintf(buf, sizeof(buf), "%d", damage);
+        lv_label_set_text(mp_state.damage_values[panel_index][shown], buf);
+        lv_obj_set_style_text_color(mp_state.damage_values[panel_index][shown], text_color, 0);
+        lv_obj_set_y(mp_state.damage_dots[panel_index][shown], shown * 18 + 4);
+        lv_obj_set_y(mp_state.damage_values[panel_index][shown], shown * 18);
+        lv_obj_clear_flag(mp_state.damage_dots[panel_index][shown], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(mp_state.damage_values[panel_index][shown], LV_OBJ_FLAG_HIDDEN);
+        shown++;
+    }
+
+    if (shown == 0) {
+        lv_obj_add_flag(group, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    if (remaining > 0) {
+        snprintf(buf, sizeof(buf), "+%d", remaining);
+        lv_label_set_text(mp_state.damage_overflow[panel_index], buf);
+        lv_obj_set_style_text_color(mp_state.damage_overflow[panel_index], text_color, 0);
+        lv_obj_set_y(mp_state.damage_overflow[panel_index], shown * 18);
+        lv_obj_clear_flag(mp_state.damage_overflow[panel_index], LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(mp_state.damage_overflow[panel_index], LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (mp_state.layout == &layout_4p && angle == 3150) {
+        int row_count = shown + (remaining > 0);
+        for (source = 0; source < shown; source++) {
+            lv_obj_set_y(mp_state.damage_dots[panel_index][source],
+                         (row_count - 1 - source) * 18 + 4);
+            lv_obj_set_y(mp_state.damage_values[panel_index][source],
+                         (row_count - 1 - source) * 18);
+        }
+        if (remaining > 0) lv_obj_set_y(mp_state.damage_overflow[panel_index], 0);
+    }
+
+    if (spec_is_wedge(spec)) {
+        int badge_angle = (wedge_bis + 335) % 360;
+        x = wedge_polar(lv_trigo_cos((int16_t)badge_angle), 122);
+        y = wedge_polar(lv_trigo_sin((int16_t)badge_angle), 122);
+    } else if (spec->w == 180) {
+        x = (spec->x == 0) ? 45 : -45;
+        y = (spec->y == 0) ? 40 : -40;
+    } else {
+        x = 110;
+        y = 0;
+    }
+
+    lv_obj_set_height(group, (shown + (remaining > 0)) * 18);
+    lv_obj_align(group, LV_ALIGN_CENTER, x, y);
+    apply_object_rotation(group, angle, 0, 0);
+    lv_obj_clear_flag(group, LV_OBJ_FLAG_HIDDEN);
+}
+
 static lv_color_t refresh_mp_panel(lv_obj_t *panel, lv_obj_t *life_lbl, lv_obj_t *name_lbl, int i, int color_i)
 {
     char buf[8];
@@ -571,6 +665,8 @@ void refresh_multiplayer_ui(void)
         refresh_counter_rows(spec, wedge_geom[i].bis_deg, panel,
                              mp_state.counter_rows[i], mp_state.counter_values[i],
                              spec->player_index, text_color, angle, counter_angle);
+        refresh_commander_damage(i, spec,
+                     wedge_geom[i].bis_deg, angle, text_color);
     }
 }
 
@@ -827,6 +923,28 @@ void rebuild_multiplayer_layout(int track)
         lv_obj_set_style_text_font(life_lbl, &lv_font_belerensmallcaps_bold_56, 0);
         lv_obj_align(life_lbl, LV_ALIGN_CENTER, 0, -10);
         mp_state.life_labels[i] = life_lbl;
+
+        mp_state.damage_groups[i] = make_plain_box(panel, 56, 18);
+        lv_obj_add_flag(mp_state.damage_groups[i], LV_OBJ_FLAG_HIDDEN);
+        int max_rows = (spec_is_wedge(spec) || spec->w == 180) ? 3 : MAX_ENEMY_COUNT;
+        for (int source = 0; source < max_rows; source++) {
+            lv_obj_t *dot = make_plain_box(mp_state.damage_groups[i], 10, 10);
+            lv_obj_set_pos(dot, 0, source * 18 + 4);
+            lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+            lv_obj_set_style_border_width(dot, 1, 0);
+            lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+            mp_state.damage_dots[i][source] = dot;
+
+            mp_state.damage_values[i][source] = lv_label_create(mp_state.damage_groups[i]);
+            lv_obj_set_style_text_font(mp_state.damage_values[i][source], &lv_font_beleren_bold_14, 0);
+            lv_obj_set_pos(mp_state.damage_values[i][source], 14, source * 18);
+            lv_obj_add_flag(mp_state.damage_values[i][source], LV_OBJ_FLAG_HIDDEN);
+        }
+        mp_state.damage_overflow[i] = lv_label_create(mp_state.damage_groups[i]);
+        lv_obj_set_style_text_font(mp_state.damage_overflow[i], &lv_font_beleren_bold_14, 0);
+        lv_obj_set_x(mp_state.damage_overflow[i], 14);
+        lv_obj_add_flag(mp_state.damage_overflow[i], LV_OBJ_FLAG_HIDDEN);
 
         create_counter_row(panel, COUNTER_TYPE_COMMANDER_TAX,
             &mp_state.counter_rows[i][COUNTER_TYPE_COMMANDER_TAX],
