@@ -12,7 +12,7 @@ Features/intended use:
 - Life tracking from -999 to 999 with delta being shown as preview for 4 seconds
 - Support for 1 to 4 players
 - Commander damage for up to 4 players, damage to all players
-- Game timer (hours:minutes) and turn counter
+- Configurable turn timer (minutes:seconds by default), total game timer, or timer off
 - Brightness and battery guesstimate (WIP)
 - D20 dice roll
 - Event log

@@ -3,6 +3,7 @@
 #include "damage_log.h"
 #include "esp_random.h"
 #include "net_sync.h"
+#include "timer.h"
 // Forward declarations for UI refresh (defined in screen modules)
 extern void refresh_player_ui(void);
 extern void refresh_select_ui(void);
@@ -821,6 +822,7 @@ static void player_select_anim_cb(lv_timer_t *timer)
 
     if (track <= 1) {
         lv_timer_pause(player_select_anim_timer);
+        turn_timer_start_fresh_for_player(0);
         return;
     }
 
@@ -837,6 +839,7 @@ static void player_select_anim_cb(lv_timer_t *timer)
     if (player_select_anim_steps <= 0) {
         lv_timer_pause(player_select_anim_timer);
         select_kick_timer();
+        turn_timer_start_fresh_for_player(roulette_idx);
     } else {
         // Linear deceleration
         player_select_anim_period += (200 / (player_select_anim_steps + 1));
@@ -849,17 +852,21 @@ void start_player_selection_animation(void)
 {
     int track = nvs_get_players_to_track();
     int random_stops;
+    int random_target;
+    int random_laps;
 
-    if (track <= 1) return;
-    if (!nvs_get_random_first()) return;
+    if (track <= 1 || !nvs_get_random_first()) {
+        turn_timer_start_fresh_for_player(0);
+        return;
+    }
 
     if (player_select_anim_timer == NULL) {
         player_select_anim_timer = lv_timer_create(player_select_anim_cb, 50, NULL);
     }
 
-    // Randomize length to ensure random landing
-    random_stops = (int)(esp_random() % track) + (track * 3);
-    random_stops += esp_random() % (track * 2);
+    random_target = (int)(esp_random() % (uint32_t)track);
+    random_laps = 3 + (int)(esp_random() % 3U);
+    random_stops = (random_laps * track) + random_target;
 
     player_select_anim_steps = random_stops;
     player_select_anim_period = 40; // start fast
@@ -874,10 +881,15 @@ void start_player_selection_animation(void)
 
 void stop_player_selection_animation(void)
 {
+    bool was_active = player_select_anim_timer != NULL && player_select_anim_steps > 0;
+
     player_select_anim_steps = 0;
     if (player_select_anim_timer != NULL) {
         lv_timer_del(player_select_anim_timer);
         player_select_anim_timer = NULL;
+    }
+    if (was_active) {
+        turn_timer_start_fresh_for_player(roulette_idx);
     }
 }
 
