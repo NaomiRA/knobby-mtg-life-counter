@@ -14,7 +14,7 @@ Features/intended use:
 - Commander damage for up to 4 players, damage to all players
 - Configurable turn timer (minutes:seconds by default), total game timer, or timer off
 - Brightness and battery guesstimate (WIP)
-- D20 dice roll
+- Up to 10 coin flips, random player picks, or D6/D10/D20 rolls at once
 - Event log
 
 ## 🛠️ Installation

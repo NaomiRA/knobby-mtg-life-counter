@@ -355,10 +355,12 @@ for track in 2 3 4; do
 done
 
 # ============================================================
-# 17. Dice with a result
+# 17. Dice picker and results
 # ============================================================
+shot "dice_picker.png" --screen dice
 d=$((RANDOM % 20 + 1))
-shot "dice_${d}.png" --screen dice --dice "$d"
+shot "dice_${d}.png" --screen dice-result --dice "$d"
+shot "dice_ten.png" --screen dice-result --dice "1,2,3,4,5,6,7,8,9,20"
 
 # ============================================================
 # 18. Event log with random data

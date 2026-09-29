@@ -327,6 +327,8 @@ static void handle_back_navigation(lv_obj_t *screen)
         /* settings pages and their sub-screens (brightness, battery) */
     } else if (screen == screen_dice) {
         lv_scr_load(screen_tools_menu);
+    } else if (screen == screen_dice_result) {
+        open_dice_screen();
     } else if (screen == screen_damage_log) {
         lv_scr_load(screen_tools_menu);
     } else if (screen == screen_select) {
@@ -537,6 +539,15 @@ static void handle_knob_event(knob_event_t k)
     {
         if (k == KNOB_LEFT)      change_mana_value(-1);
         else if (k == KNOB_RIGHT) change_mana_value(+1);
+    }
+    else if (lv_scr_act() == screen_dice)
+    {
+        if (k == KNOB_LEFT)      change_dice_count(-1);
+        else if (k == KNOB_RIGHT) change_dice_count(+1);
+    }
+    else if (lv_scr_act() == screen_dice_result)
+    {
+        return;
     }
     else if (k == KNOB_LEFT || k == KNOB_RIGHT)
     {

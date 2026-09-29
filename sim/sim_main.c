@@ -127,6 +127,7 @@ static void nav_battery(void)    { open_battery_screen(); }
 static void nav_rotate(void)     { open_rotate_screen(); }
 static void nav_table_sync(void) { open_table_sync_screen(); }
 static void nav_dice(void)       { open_dice_screen(); }
+static void nav_dice_result(void) { open_dice_result_screen(); }
 static void nav_damage_log(void) { open_damage_log_screen(); }
 static void nav_game_mode(void)  { open_game_mode_menu(); }
 static void nav_custom_life(void){ open_game_mode_menu(); lv_scr_load(screen_custom_life); refresh_custom_life_ui(); }
@@ -172,6 +173,7 @@ static const screen_entry_t all_screens[] = {
     {"rotate",        nav_rotate},
     {"table-sync",    nav_table_sync},
     {"dice",          nav_dice},
+    {"dice-result",   nav_dice_result},
     {"damage-log",    nav_damage_log},
     {"game-mode",     nav_game_mode},
     {"custom-life",   nav_custom_life},
@@ -251,7 +253,7 @@ static void print_usage(void)
            "  --table-sync <n>       0=OFF, 1=ON ESP-NOW table sync (default: 0)\n"
            "  --table-session <n>    Table sync game session ID, 0=none (default: 0)\n"
            "\nSpecial state:\n"
-           "  --dice <n>             Set dice roll result (1-20)\n"
+           "  --dice <csv>           Set D20 results for dice-result (1-10 values)\n"
            "  --counter-type <n>     Counter type for counter-edit: 0=cmd tax, 1=partner tax,\n"
            "                         2=poison, 3=experience (default: 2)\n"
            "  --counter-value <n>    Committed counter value for counter-edit (default: 0)\n"
@@ -341,8 +343,8 @@ int main(int argc, char *argv[])
     int preview_delta = 0;
     int preview_delta_set = 0;
     int arg_preview_player = -1;
-    int dice_val = 0;
-    int dice_set = 0;
+    int dice_values[10] = {0};
+    int dice_count = 0;
     int counter_type_val = 2; /* default: poison */
     int counter_type_set = 0;
     int counter_value_val = 0;
@@ -445,8 +447,7 @@ int main(int argc, char *argv[])
         } else if (strcmp(argv[i], "--auto-eliminate") == 0 && i + 1 < argc) {
             sim_nvs_preset_i8("auto_elim", (int8_t)atoi(argv[++i]));
         } else if (strcmp(argv[i], "--dice") == 0 && i + 1 < argc) {
-            dice_val = atoi(argv[++i]);
-            dice_set = 1;
+            dice_count = parse_csv_ints(argv[++i], dice_values, 10);
         } else if (strcmp(argv[i], "--counter-type") == 0 && i + 1 < argc) {
             counter_type_val = atoi(argv[++i]);
             counter_type_set = 1;
@@ -566,10 +567,8 @@ int main(int argc, char *argv[])
             brightness_percent = brightness_val; \
             brightness_apply(); \
         } \
-        if (dice_set) { \
-            dice_result = dice_val; \
-            refresh_dice_ui(); \
-        } \
+        if (dice_count > 0) \
+            dice_set_simulator_results(dice_values, dice_count); \
         if (counter_type_set || counter_value_set || counter_delta_set) { \
             if (counter_value_set && \
                 counter_player_val >= 0 && counter_player_val < MAX_DISPLAY_PLAYERS && \
