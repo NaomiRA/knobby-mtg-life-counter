@@ -392,7 +392,8 @@
     LV_FONT_DECLARE(lv_font_beleren_bold_14) \
     LV_FONT_DECLARE(lv_font_beleren_bold_16) \
     LV_FONT_DECLARE(lv_font_beleren_bold_22) \
-    LV_FONT_DECLARE(lv_font_beleren_bold_32)
+    LV_FONT_DECLARE(lv_font_beleren_bold_32) \
+    LV_FONT_DECLARE(lv_font_mplantin_16)
 
 /*Always set a default font*/
 #define LV_FONT_DEFAULT &lv_font_beleren_bold_14
@@ -480,7 +481,7 @@
 
 #define LV_USE_DROPDOWN   0   /*Requires: lv_label*/
 
-#define LV_USE_IMG        0   /*Requires: lv_label*/
+#define LV_USE_IMG        1   /*Requires: lv_label*/
 
 #define LV_USE_LABEL      1
 #if LV_USE_LABEL

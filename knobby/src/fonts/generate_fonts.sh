@@ -22,6 +22,7 @@ MONTSERRAT_BOLD=Montserrat-Bold.ttf
 MONTSERRAT_REGULAR=Montserrat-Regular.ttf
 BELEREN_SMALLCAPS_BOLD=belerensmallcaps-bold.ttf
 BELEREN_BOLD=beleren-bold_P1.01.ttf
+MPLANTIN=mplantin.ttf
 
 # ---------- Character ranges ----------
 # Digits + signs for life total / dice (space, +, -, 0-9, =)
@@ -83,6 +84,7 @@ generate_font "lv_font_beleren_bold_14" "$BELEREN_BOLD" 14 "$RANGE_UI_TEXT"
 generate_font "lv_font_beleren_bold_16" "$BELEREN_BOLD" 16 "$RANGE_UI_TEXT"
 generate_font "lv_font_beleren_bold_22" "$BELEREN_BOLD" 22 "$RANGE_UI_TEXT"
 generate_font "lv_font_beleren_bold_32" "$BELEREN_BOLD" 32 "$RANGE_UI_TEXT"
+generate_font "lv_font_mplantin_16" "$MPLANTIN" 16 "$RANGE_UI_TEXT"
 
 echo ""
 echo "Done! Generated fonts:"

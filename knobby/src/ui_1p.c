@@ -4,6 +4,8 @@
 #include "ui_player_menu.h"
 #include "game.h"
 #include "timer.h"
+#include "game_mode.h"
+#include "planechase.h"
 #include "storage.h"
 #include "hw.h"
 
@@ -24,6 +26,8 @@ static lv_obj_t *turn_live_dot = NULL;
 // ---------- 1p counter widgets ----------
 static lv_obj_t *counter_row_1p[COUNTER_TYPE_COUNT];
 static lv_obj_t *counter_value_1p[COUNTER_TYPE_COUNT];
+static lv_obj_t *plane_cost_row_1p = NULL;
+static lv_obj_t *plane_cost_value_1p = NULL;
 
 // ---------- select UI ----------
 static lv_obj_t *label_select_title = NULL;
@@ -59,6 +63,16 @@ void refresh_turn_ui(void)
     char buf[48];
     char elapsed_buf[16];
 
+    if (planechase_active) {
+        lv_label_set_text(label_turn, "Plane\nHold: end turn");
+        lv_obj_set_style_text_font(label_turn, &lv_font_beleren_bold_14, 0);
+        lv_obj_clear_flag(turn_container, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(turn_live_dot, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_opa(turn_container, LV_OPA_COVER, 0);
+        return;
+    }
+
+    lv_obj_set_style_text_font(label_turn, &lv_font_beleren_bold_22, 0);
     format_timer_elapsed(elapsed_buf, sizeof(elapsed_buf));
 
     if (turn_number <= 0) {
@@ -130,8 +144,10 @@ static void refresh_1p_counters(void)
 {
     int type;
     int visible_count = 0;
+    unsigned int plane_cost = planechase_roll_cost(0);
+    int total_count;
     int visible_types[COUNTER_TYPE_COUNT];
-    char buf[8];
+    char buf[16];
     const lv_coord_t step = 30;
     const lv_coord_t counter_y = 46;
     lv_color_t text_color = lv_color_white();
@@ -149,10 +165,12 @@ static void refresh_1p_counters(void)
         visible_count++;
     }
 
+    total_count = visible_count + (plane_cost > 0 ? 1 : 0);
+
     for (type = 0; type < visible_count; type++) {
         int value;
         int counter_type = visible_types[type];
-        lv_coord_t x_offset = (lv_coord_t)((type * step) - ((visible_count - 1) * step / 2));
+        lv_coord_t x_offset = (lv_coord_t)((type * step) - ((total_count - 1) * step / 2));
 
         value = get_counter_value(0, (counter_type_t)counter_type);
 
@@ -163,6 +181,18 @@ static void refresh_1p_counters(void)
         lv_obj_align(counter_row_1p[counter_type], LV_ALIGN_TOP_MID, x_offset, counter_y);
     }
 
+    if (plane_cost_row_1p != NULL) {
+        if (plane_cost > 0) {
+            lv_coord_t x_offset = (lv_coord_t)((visible_count * step) - ((total_count - 1) * step / 2));
+            snprintf(buf, sizeof(buf), "%u", plane_cost);
+            lv_label_set_text(plane_cost_value_1p, buf);
+            lv_obj_set_style_text_color(plane_cost_value_1p, text_color, 0);
+            lv_obj_clear_flag(plane_cost_row_1p, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_align(plane_cost_row_1p, LV_ALIGN_TOP_MID, x_offset, counter_y);
+        } else {
+            lv_obj_add_flag(plane_cost_row_1p, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
 }
 
 void refresh_main_ui(void)
@@ -456,7 +486,8 @@ void build_main_screen(void)
     lv_obj_align(turn_container, LV_ALIGN_CENTER, 0, 120);
     lv_obj_add_flag(turn_container, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(turn_container, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_event_cb(turn_container, event_turn_tap, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(turn_container, event_turn_tap, LV_EVENT_SHORT_CLICKED, NULL);
+    lv_obj_add_event_cb(turn_container, event_turn_tap, LV_EVENT_LONG_PRESSED, NULL);
 
     label_turn = lv_label_create(turn_container);
     lv_label_set_text(label_turn, "turn  0:00");
@@ -485,6 +516,7 @@ void build_main_screen(void)
     create_counter_row_1p(screen_1p, COUNTER_TYPE_EXPERIENCE,
         &counter_row_1p[COUNTER_TYPE_EXPERIENCE],
         &counter_value_1p[COUNTER_TYPE_EXPERIENCE]);
+    create_plane_cost_row(screen_1p, &plane_cost_row_1p, &plane_cost_value_1p);
 
     {
         lv_obj_t *batt = lv_label_create(screen_1p);
