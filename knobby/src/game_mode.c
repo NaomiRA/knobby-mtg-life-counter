@@ -1,7 +1,10 @@
 #include "game_mode.h"
+#include "planechase.h"
 #include "storage.h"
 #include "settings.h"
 #include "ui_mp.h"
+#include "ui_1p.h"
+#include "game.h"
 #include "net_sync.h"
 
 // Forward declarations
@@ -10,12 +13,14 @@ extern void back_to_main(void);
 
 // ---------- screens ----------
 lv_obj_t *screen_game_mode_menu = NULL;
+lv_obj_t *screen_game_mode_more = NULL;
 lv_obj_t *screen_custom_life = NULL;
-
 // ---------- dynamic labels ----------
 static lv_obj_t *label_gm_num_players = NULL;
 static lv_obj_t *label_gm_timer_mode = NULL;
 static lv_obj_t *label_gm_life_total = NULL;
+static lv_obj_t *btn_gm_planechase = NULL;
+static lv_obj_t *label_gm_planechase = NULL;
 
 // ---------- custom life widgets ----------
 static lv_obj_t *label_custom_life_value = NULL;
@@ -24,6 +29,7 @@ static lv_obj_t *label_custom_life_value = NULL;
 static int temp_num_players;
 static int temp_timer_mode;
 static int temp_life_total;
+static bool temp_planechase;
 
 static const char *get_timer_mode_name(int mode)
 {
@@ -47,6 +53,10 @@ void refresh_game_mode_menu_ui(void)
 
     snprintf(buf, sizeof(buf), "Life\n%d", temp_life_total);
     lv_label_set_text(label_gm_life_total, buf);
+
+    lv_label_set_text(label_gm_planechase, temp_planechase ? "Planechase\nSelected" : "Planechase");
+    lv_obj_set_style_bg_color(btn_gm_planechase,
+        lv_color_hex(temp_planechase ? 0x176B56 : 0x1A1A2E), 0);
 }
 
 void refresh_custom_life_ui(void)
@@ -62,6 +72,7 @@ void open_game_mode_menu(void)
     temp_num_players = nvs_get_num_players();
     temp_timer_mode = nvs_get_timer_mode();
     temp_life_total = nvs_get_life_total();
+    temp_planechase = planechase_active;
     refresh_game_mode_menu_ui();
     lv_scr_load(screen_game_mode_menu);
 }
@@ -115,6 +126,13 @@ static void event_gm_life_custom(lv_event_t *e)
     lv_indev_wait_release(lv_indev_get_act());
 }
 
+static void event_gm_planechase(lv_event_t *e)
+{
+    (void)e;
+    temp_planechase = !temp_planechase;
+    refresh_game_mode_menu_ui();
+}
+
 static void event_gm_apply(lv_event_t *e)
 {
     (void)e;
@@ -129,10 +147,17 @@ static void event_gm_apply(lv_event_t *e)
     nvs_set_timer_mode(temp_timer_mode);
     nvs_set_life_total(temp_life_total);
     settings_save();
+    planechase_set_active(temp_planechase, temp_num_players);
     reset_all_values();
     rebuild_multiplayer_layout(temp_num_players);
     back_to_main();
     lv_indev_wait_release(lv_indev_get_act());
+}
+
+static void event_gm_more(lv_event_t *e)
+{
+    (void)e;
+    lv_scr_load(lv_scr_act() == screen_game_mode_menu ? screen_game_mode_more : screen_game_mode_menu);
 }
 
 // ---------- screen builders ----------
@@ -144,9 +169,23 @@ void build_game_mode_menu_screen(void)
         {"Players\n4",          event_gm_num_players,      true, LV_EVENT_CLICKED},
         {"Timer\nTurn",         event_gm_timer_mode,       true, LV_EVENT_CLICKED},
         {"Life\n40",            event_gm_life_cycle,       true, LV_EVENT_SHORT_CLICKED},
-        {"Apply\n(Hold)",       event_gm_apply,            true, LV_EVENT_LONG_PRESSED},
+        {"More\n(Hold to apply)", event_gm_more,           true, LV_EVENT_SHORT_CLICKED},
+    };
+    quad_item_t more_items[4] = {
+        {"Planechase",          event_gm_planechase,       true, LV_EVENT_CLICKED},
+        {"2HG",                 NULL,                      false, LV_EVENT_CLICKED},
+        {"Bounty Hunter",       NULL,                      false, LV_EVENT_CLICKED},
+        {"More\n(Hold to apply)", event_gm_more,           true, LV_EVENT_SHORT_CLICKED},
     };
     build_quad_screen(&screen_game_mode_menu, items);
+    build_quad_screen(&screen_game_mode_more, more_items);
+    btn_gm_planechase = lv_obj_get_child(screen_game_mode_more, 0);
+    label_gm_planechase = lv_obj_get_child(btn_gm_planechase, 0);
+
+    btn = lv_obj_get_child(screen_game_mode_menu, 3);
+    lv_obj_add_event_cb(btn, event_gm_apply, LV_EVENT_LONG_PRESSED, NULL);
+    btn = lv_obj_get_child(screen_game_mode_more, 3);
+    lv_obj_add_event_cb(btn, event_gm_apply, LV_EVENT_LONG_PRESSED, NULL);
 
     // Store label references for dynamic updates
     btn = lv_obj_get_child(screen_game_mode_menu, 0);
@@ -189,3 +228,4 @@ void build_custom_life_screen(void)
     lv_obj_set_style_text_font(hint, &lv_font_beleren_bold_14, 0);
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 24);
 }
+

@@ -5,6 +5,8 @@
 #include "storage.h"
 #include "hw.h"
 #include "timer.h"
+#include "game_mode.h"
+#include "planechase.h"
 
 static lv_obj_t *add_low_battery_icon(lv_obj_t *parent)
 {
@@ -116,6 +118,8 @@ static struct {
     lv_obj_t *damage_overflow[MULTIPLAYER_COUNT];
     lv_obj_t *counter_rows[MULTIPLAYER_COUNT][COUNTER_TYPE_COUNT];
     lv_obj_t *counter_values[MULTIPLAYER_COUNT][COUNTER_TYPE_COUNT];
+    lv_obj_t *plane_cost_rows[MULTIPLAYER_COUNT];
+    lv_obj_t *plane_cost_values[MULTIPLAYER_COUNT];
     lv_obj_t *timer_circle;
     lv_obj_t *timer_player_dot;
     lv_obj_t *timer_turn_label;
@@ -417,8 +421,10 @@ static void refresh_counter_rows(const mp_panel_spec_t *spec, int16_t wedge_bis,
 {
     int type;
     int visible_count = 0;
+    unsigned int plane_cost = planechase_roll_cost(player_index);
+    int total_count;
     int visible_types[COUNTER_TYPE_COUNT];
-    char buf[8];
+    char buf[16];
     const lv_coord_t step = 30;
     lv_coord_t anchor_x = 0;
     lv_coord_t anchor_y = 0;
@@ -441,10 +447,12 @@ static void refresh_counter_rows(const mp_panel_spec_t *spec, int16_t wedge_bis,
         visible_count++;
     }
 
+    total_count = visible_count + (plane_cost > 0 ? 1 : 0);
+
     for (type = 0; type < visible_count; type++) {
         int value;
         int counter_type = visible_types[type];
-        lv_coord_t x_offset = (lv_coord_t)((type * step) - ((visible_count - 1) * step / 2));
+        lv_coord_t x_offset = (lv_coord_t)((type * step) - ((total_count - 1) * step / 2));
         lv_coord_t local_x;
         lv_coord_t local_y;
 
@@ -454,7 +462,7 @@ static void refresh_counter_rows(const mp_panel_spec_t *spec, int16_t wedge_bis,
                life/name labels regardless of badge count. */
             const int radius = 152;
             const int step_deg = 12;
-            int a = (wedge_bis + ((visible_count - 1) * step_deg / 2)
+            int a = (wedge_bis + ((total_count - 1) * step_deg / 2)
                      - (type * step_deg) + 360) % 360;
             local_x = wedge_polar(lv_trigo_cos((int16_t)a), radius);
             local_y = wedge_polar(lv_trigo_sin((int16_t)a), radius);
@@ -477,6 +485,34 @@ static void refresh_counter_rows(const mp_panel_spec_t *spec, int16_t wedge_bis,
         lv_obj_clear_flag(rows[counter_type], LV_OBJ_FLAG_HIDDEN);
         lv_obj_align(rows[counter_type], LV_ALIGN_CENTER, local_x, local_y);
         apply_object_rotation(rows[counter_type], row_angle, 0, 0);
+    }
+
+    if (mp_state.plane_cost_rows[player_index] != NULL) {
+        lv_obj_t *cost_row = mp_state.plane_cost_rows[player_index];
+        if (plane_cost > 0) {
+            lv_coord_t local_x;
+            lv_coord_t local_y;
+            lv_obj_t *icon = lv_obj_get_child(cost_row, 0);
+
+            if (spec_is_wedge(spec)) {
+                int angle = (wedge_bis + ((total_count - 1) * 12 / 2)
+                             - (visible_count * 12) + 360) % 360;
+                local_x = wedge_polar(lv_trigo_cos((int16_t)angle), 152);
+                local_y = wedge_polar(lv_trigo_sin((int16_t)angle), 152);
+            } else {
+                local_x = anchor_x + (lv_coord_t)((visible_count * step) - ((total_count - 1) * step / 2));
+                local_y = anchor_y;
+            }
+            snprintf(buf, sizeof(buf), "%u", plane_cost);
+            lv_label_set_text(mp_state.plane_cost_values[player_index], buf);
+            lv_obj_set_style_text_color(mp_state.plane_cost_values[player_index], text_color, 0);
+            lv_obj_set_style_img_recolor(icon, text_color, 0);
+            lv_obj_clear_flag(cost_row, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_align(cost_row, LV_ALIGN_CENTER, local_x, local_y);
+            apply_object_rotation(cost_row, row_angle, 0, 0);
+        } else {
+            lv_obj_add_flag(cost_row, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 }
 
@@ -783,7 +819,29 @@ void refresh_multiplayer_timer_ui(void)
 
     if (mp_state.timer_circle == NULL) return;
 
-    if (!turn_ui_visible || nvs_get_timer_mode() == TIMER_MODE_OFF) {
+    if (planechase_active && selection_count() > 0) {
+        lv_label_set_text(mp_state.timer_turn_label, "View\nPlane");
+        lv_obj_set_style_text_align(mp_state.timer_turn_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_add_flag(mp_state.timer_player_dot, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
+    lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 6, -12);
+    lv_obj_clear_flag(mp_state.timer_player_dot, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
+
+    if (planechase_active && nvs_get_timer_mode() == TIMER_MODE_OFF) {
+        lv_label_set_text(mp_state.timer_turn_label, "Timer");
+        lv_label_set_text(mp_state.timer_elapsed_label, "OFF");
+        lv_obj_add_flag(mp_state.timer_player_dot, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
+    if (!planechase_active && (!turn_ui_visible || nvs_get_timer_mode() == TIMER_MODE_OFF)) {
         lv_obj_add_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
         return;
     }
@@ -1134,6 +1192,7 @@ void rebuild_multiplayer_layout(int track)
         create_counter_row(panel, COUNTER_TYPE_EXPERIENCE,
             &mp_state.counter_rows[i][COUNTER_TYPE_EXPERIENCE],
             &mp_state.counter_values[i][COUNTER_TYPE_EXPERIENCE], p);
+        create_plane_cost_row(panel, &mp_state.plane_cost_rows[p], &mp_state.plane_cost_values[p]);
     }
 
     if (layout->panel_count > 0 && spec_is_wedge(&layout->panels[0])) {

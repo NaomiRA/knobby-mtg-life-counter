@@ -10,6 +10,7 @@
 #include "src/ui_player_menu.h"
 #include "src/settings.h"
 #include "src/game_mode.h"
+#include "src/planechase.h"
 #include "src/damage_log.h"
 #include "src/rename.h"
 #include "src/mana.h"
@@ -336,11 +337,13 @@ static void handle_back_navigation(lv_obj_t *screen)
     } else if (screen == screen_damage) {
         damage_cancel();
         open_select_screen();
-    } else if (screen == screen_game_mode_menu) {
+    } else if (screen == screen_game_mode_menu || screen == screen_game_mode_more) {
         lv_scr_load(screen_quad_menu);
     } else if (screen == screen_custom_life) {
         refresh_game_mode_menu_ui();
         lv_scr_load(screen_game_mode_menu);
+    } else if (screen == screen_planechase) {
+        back_to_main();
     } else if (screen == screen_player_menu) {
         back_to_main();
     } else if (screen == screen_player_name) {
@@ -450,6 +453,7 @@ void knob_gui(void)
     build_quad_menus();
     build_game_mode_menu_screen();
     build_custom_life_screen();
+    build_planechase_screen();
     menu_facing_hook_screens();
 
     refresh_main_ui();
@@ -548,6 +552,11 @@ static void handle_knob_event(knob_event_t k)
     else if (lv_scr_act() == screen_dice_result)
     {
         return;
+    }
+    else if (lv_scr_act() == screen_game_mode_menu || lv_scr_act() == screen_game_mode_more)
+    {
+        if (k == KNOB_LEFT || k == KNOB_RIGHT)
+            lv_scr_load(lv_scr_act() == screen_game_mode_menu ? screen_game_mode_more : screen_game_mode_menu);
     }
     else if (k == KNOB_LEFT || k == KNOB_RIGHT)
     {

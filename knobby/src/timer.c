@@ -2,6 +2,9 @@
 #include "storage.h"
 #include "ui_mp.h"
 #include "damage_log.h"
+#include "game_mode.h"
+#include "planechase.h"
+#include "game.h"
 
 // Forward declaration
 extern void refresh_turn_ui(void);
@@ -155,9 +158,13 @@ void event_turn_tap(lv_event_t *e)
     int player_count;
     uint32_t now;
 
-    (void)e;
+    if (planechase_active && lv_event_get_code(e) != LV_EVENT_LONG_PRESSED &&
+        (lv_scr_act() != screen_multiplayer || selection_count() > 0)) {
+        open_planechase_screen();
+        return;
+    }
 
-    if (nvs_get_timer_mode() == TIMER_MODE_OFF) return;
+    if (nvs_get_timer_mode() == TIMER_MODE_OFF && !planechase_active) return;
 
     now = lv_tick_get();
     if (turn_number <= 0) {
@@ -166,6 +173,7 @@ void event_turn_tap(lv_event_t *e)
         turn_elapsed_ms = 0;
         game_elapsed_ms = 0;
     } else {
+        if (planechase_active) planechase_pass_turn(turn_player_index);
         damage_log_add_turn(turn_player_index, get_turn_elapsed_ms());
         game_elapsed_ms = get_game_elapsed_ms();
         turn_elapsed_ms = 0;
@@ -182,7 +190,7 @@ void event_turn_tap(lv_event_t *e)
 
     turn_started_ms = now;
     game_started_ms = now;
-    turn_timer_enabled = true;
+    turn_timer_enabled = (nvs_get_timer_mode() != TIMER_MODE_OFF);
     turn_ui_visible = true;
     refresh_turn_ui();
     refresh_multiplayer_timer_ui();

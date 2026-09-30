@@ -101,6 +101,11 @@ cd emsdk
 source ./emsdk_env.sh   # or emsdk_env.bat on Windows
 ```
 
+Planechase cards are compiled from the 139-card `knobby/src/resources/all_planes.csv` dataset.
+The shuffled deck uses 10 cards per player. After editing the CSV, run
+`python knobby/src/resources/generate_planes.py` before building firmware or simulators.
+The `image_uri` column is optional; the device displays the card's name, type, and rules text.
+
 ### PC Simulator (Native) 💻
 A native application for local interactive development.
 - **Run:** `make sim` (or `./sim.sh`)

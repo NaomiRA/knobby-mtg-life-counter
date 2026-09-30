@@ -5,6 +5,7 @@
 
 // ---------- screens ----------
 extern lv_obj_t *screen_game_mode_menu;
+extern lv_obj_t *screen_game_mode_more;
 extern lv_obj_t *screen_custom_life;
 
 // ---------- functions ----------
