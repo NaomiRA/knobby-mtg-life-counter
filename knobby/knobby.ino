@@ -11,6 +11,7 @@
 #include "knob.h"
 #include "src/hw.h"
 #include "knobby_net.h"
+#include <SPIFFS.h>
 
 static const float BATTERY_DIVIDER_RATIO = 2.0f;
 static const float BATTERY_CALIBRATION_SCALE = 1.0f;
@@ -95,6 +96,10 @@ void setup()
 
   delay(200);
   Serial.begin(115200);
+
+  if (!SPIFFS.begin(false)) {
+    Serial.println("SPIFFS mount failed; plane images unavailable");
+  }
 
   scr_lvgl_init();
   knob_gui();

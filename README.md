@@ -104,7 +104,13 @@ source ./emsdk_env.sh   # or emsdk_env.bat on Windows
 Planechase cards are compiled from the 139-card `knobby/src/resources/all_planes.csv` dataset.
 The shuffled deck uses 10 cards per player. After editing the CSV, run
 `python knobby/src/resources/generate_planes.py` before building firmware or simulators.
-The `image_uri` column is optional; the device displays the card's name, type, and rules text.
+Install the image conversion dependency with
+`python -m pip install -r knobby/src/resources/requirements-images.txt`, then run
+`python knobby/src/resources/download_plane_images.py`. Card art is saved as 360x360
+LVGL Split-JPEG files under `knobby/data/planes/`, indexed in CSV order.
+The firmware mounts its existing SPIFFS partition at `/spiffs`; LVGL can read JPEG files
+there using paths such as `S:/planes/000.sjpg`. The mount does not format on failure, and
+the firmware does not download `image_uri` values at runtime.
 
 ### PC Simulator (Native) 💻
 A native application for local interactive development.
