@@ -534,6 +534,8 @@
 
 #define LV_USE_IMGBTN     0
 
+#define LV_USE_IMGFONT    1
+
 #define LV_USE_KEYBOARD   1
 
 #define LV_USE_LED        0
@@ -603,10 +605,16 @@
 /*File system interfaces for common APIs */
 
 /*API for fopen, fread, etc*/
-#define LV_USE_FS_STDIO 0
+#define LV_USE_FS_STDIO 'S'
 #if LV_USE_FS_STDIO
-    #define LV_FS_STDIO_LETTER '\0'     /*Set an upper cased letter on which the drive will accessible (e.g. 'A')*/
-    #define LV_FS_STDIO_PATH ""         /*Set the working directory. File/directory paths will be appended to it.*/
+    #define LV_FS_STDIO_LETTER 'S'
+    #if defined(SIMULATOR) && defined(__EMSCRIPTEN__)
+        #define LV_FS_STDIO_PATH "/knobby/data"
+    #elif defined(SIMULATOR)
+        #define LV_FS_STDIO_PATH "../knobby/data"
+    #else
+        #define LV_FS_STDIO_PATH "/spiffs"
+    #endif
     #define LV_FS_STDIO_CACHE_SIZE  0   /*>0 to cache this number of bytes in lv_fs_read()*/
 #endif
 
@@ -641,7 +649,7 @@
 
 /* JPG + split JPG decoder library.
  * Split JPG is a custom format optimized for embedded systems. */
-#define LV_USE_SJPG 0
+#define LV_USE_SJPG 1
 
 /*GIF decoder library*/
 #define LV_USE_GIF 0

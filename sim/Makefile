@@ -86,6 +86,7 @@ web:
 	$(EMCC) $(CFLAGS) -o knobby_web.js @web_sources.txt \
 		-s USE_SDL=2 -s WASM=1 \
 		-s INITIAL_MEMORY=33554432 \
+		--preload-file ../knobby/data@/knobby/data \
 		-s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'
 
 screenshot: $(BIN)

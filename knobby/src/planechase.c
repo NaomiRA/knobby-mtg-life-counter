@@ -6,9 +6,34 @@
 #include "ui_mp.h"
 #include "esp_random.h"
 #include "resources/planes_data.h"
+#include "extra/others/imgfont/lv_imgfont.h"
 #include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if !defined(SIMULATOR)
+#include "esp_heap_caps.h"
+#endif
+
+#define PLANE_BACKGROUND_WIDTH 360
+#define PLANE_BACKGROUND_HEIGHT 360
 
 LV_IMG_DECLARE(planeswalker);
+LV_IMG_DECLARE(chaos);
+
+#define CHAOS_ICON_SIZE 16
+#define CHAOS_SYMBOL_CODEPOINT 0xE61D
+
+static uint8_t chaos_small_map[CHAOS_ICON_SIZE * CHAOS_ICON_SIZE / 2];
+static const lv_img_dsc_t chaos_small = {
+    .header.cf = LV_IMG_CF_ALPHA_4BIT,
+    .header.w = CHAOS_ICON_SIZE,
+    .header.h = CHAOS_ICON_SIZE,
+    .data_size = sizeof(chaos_small_map),
+    .data = chaos_small_map,
+};
+static lv_font_t plane_text_font;
+static lv_font_t *plane_text_imgfont = NULL;
 
 static uint8_t planeswalker_small_map[16 * 16 / 2];
 static const lv_img_dsc_t planeswalker_small = {
@@ -27,6 +52,14 @@ static int plane_deck_count = 0;
 static int plane_deck_position = 0;
 static unsigned int plane_roll_counts[MAX_DISPLAY_PLAYERS];
 static int plane_roll_player = 0;
+static lv_obj_t *image_plane_background = NULL;
+static lv_color_t *plane_background_pixels = NULL;
+static lv_img_dsc_t plane_background_cached = {
+    .header.cf = LV_IMG_CF_TRUE_COLOR,
+    .header.w = PLANE_BACKGROUND_WIDTH,
+    .header.h = PLANE_BACKGROUND_HEIGHT,
+    .data_size = PLANE_BACKGROUND_WIDTH * PLANE_BACKGROUND_HEIGHT * sizeof(lv_color_t),
+};
 static lv_obj_t *label_plane_name = NULL;
 static lv_obj_t *label_plane_viewer = NULL;
 static lv_obj_t *label_plane_type = NULL;
@@ -35,14 +68,96 @@ static lv_obj_t *label_plane_count = NULL;
 static lv_obj_t *label_plane_result = NULL;
 static lv_obj_t *label_plane_roll = NULL;
 static lv_timer_t *plane_result_timer = NULL;
+static char plane_image_path[32];
 
 extern void back_to_main(void);
 
+static uint8_t chaos_alpha_at(int x, int y)
+{
+    uint8_t pixel_pair = chaos.data[y * 16 + x / 2];
+    return (x & 1) ? pixel_pair & 0x0f : pixel_pair >> 4;
+}
+
+static bool chaos_imgfont_path(const lv_font_t *font, void *img_src, uint16_t len,
+                               uint32_t unicode, uint32_t unicode_next)
+{
+    (void)font;
+    (void)unicode_next;
+    if (unicode != CHAOS_SYMBOL_CODEPOINT || len < sizeof(chaos_small)) return false;
+    memcpy(img_src, &chaos_small, sizeof(chaos_small));
+    return true;
+}
+
+static void init_plane_text_font(void)
+{
+    if (plane_text_imgfont != NULL) return;
+
+    for (int y = 0; y < CHAOS_ICON_SIZE; y++) {
+        for (int x = 0; x < CHAOS_ICON_SIZE; x++) {
+            uint8_t alpha = (chaos_alpha_at(x * 2, y * 2) +
+                             chaos_alpha_at(x * 2 + 1, y * 2) +
+                             chaos_alpha_at(x * 2, y * 2 + 1) +
+                             chaos_alpha_at(x * 2 + 1, y * 2 + 1) + 2) / 4;
+            int index = y * (CHAOS_ICON_SIZE / 2) + x / 2;
+            chaos_small_map[index] |= (x & 1) ? alpha : alpha << 4;
+        }
+    }
+
+    plane_text_imgfont = lv_imgfont_create(17, chaos_imgfont_path);
+    if (plane_text_imgfont == NULL) return;
+    plane_text_font = lv_font_mplantin_16;
+    plane_text_font.fallback = plane_text_imgfont;
+}
+
+static bool cache_plane_background(int card_index)
+{
+    lv_img_decoder_dsc_t decoder;
+    size_t pixel_buffer_size = sizeof(lv_color_t) * PLANE_BACKGROUND_WIDTH * PLANE_BACKGROUND_HEIGHT;
+    bool decoded = true;
+
+    snprintf(plane_image_path, sizeof(plane_image_path), "S:/planes/%03d.sjpg", card_index);
+
+    if (plane_background_pixels == NULL) {
+#if defined(SIMULATOR)
+        plane_background_pixels = malloc(pixel_buffer_size);
+#else
+        plane_background_pixels = heap_caps_malloc(pixel_buffer_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#endif
+    }
+    if (plane_background_pixels == NULL) return false;
+
+    if (lv_img_decoder_open(&decoder, plane_image_path, lv_color_white(), 0) != LV_RES_OK) return false;
+    if (decoder.header.w != PLANE_BACKGROUND_WIDTH || decoder.header.h != PLANE_BACKGROUND_HEIGHT) {
+        lv_img_decoder_close(&decoder);
+        return false;
+    }
+
+    for (int row_index = 0; row_index < PLANE_BACKGROUND_HEIGHT; row_index++) {
+        uint8_t *row = (uint8_t *)(plane_background_pixels + row_index * PLANE_BACKGROUND_WIDTH);
+        if (lv_img_decoder_read_line(&decoder, 0, row_index, PLANE_BACKGROUND_WIDTH, row) != LV_RES_OK) {
+            decoded = false;
+            break;
+        }
+    }
+    lv_img_decoder_close(&decoder);
+    if (!decoded) return false;
+
+    plane_background_cached.data = (const uint8_t *)plane_background_pixels;
+    lv_img_set_src(image_plane_background, &plane_background_cached);
+    return true;
+}
+
 static void refresh_planechase_screen(void)
 {
-    const plane_card_t *card = &plane_cards[plane_deck[plane_deck_position]];
+    int card_index = plane_deck[plane_deck_position];
+    const plane_card_t *card = &plane_cards[card_index];
     char count[24];
 
+    if (!cache_plane_background(card_index)) {
+        snprintf(plane_image_path, sizeof(plane_image_path), "S:/planes/%03d.sjpg", card_index);
+        lv_img_set_src(image_plane_background, plane_image_path);
+    }
+    lv_obj_center(image_plane_background);
     lv_label_set_text(label_plane_name, card->name);
     lv_label_set_text(label_plane_type, card->type_line);
     lv_label_set_text(label_plane_text, card->oracle_text);
@@ -233,14 +348,21 @@ void build_planechase_screen(void)
     lv_obj_t *button;
     lv_obj_t *label;
 
+    init_plane_text_font();
+
     screen_planechase = lv_obj_create(NULL);
     lv_obj_set_size(screen_planechase, 360, 360);
     lv_obj_set_style_bg_color(screen_planechase, lv_color_black(), 0);
     lv_obj_set_style_border_width(screen_planechase, 0, 0);
     lv_obj_set_scrollbar_mode(screen_planechase, LV_SCROLLBAR_MODE_OFF);
 
+    image_plane_background = lv_img_create(screen_planechase);
+    lv_img_set_src(image_plane_background, "S:/planes/000.sjpg");
+    lv_obj_center(image_plane_background);
+    lv_obj_set_style_img_opa(image_plane_background, LV_OPA_50, 0);
+
     button = lv_btn_create(screen_planechase);
-    lv_obj_set_size(button, 50, 36);
+    lv_obj_set_size(button, 55, 36);
     lv_obj_align(button, LV_ALIGN_TOP_MID, 0, 6);
     lv_obj_add_event_cb(button, event_plane_close, LV_EVENT_CLICKED, NULL);
     label = lv_label_create(button);
@@ -280,7 +402,8 @@ void build_planechase_screen(void)
     label_plane_text = lv_label_create(text_area);
     lv_obj_set_width(label_plane_text, 252);
     lv_obj_set_style_text_color(label_plane_text, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_plane_text, &lv_font_mplantin_16, 0);
+    lv_obj_set_style_text_font(label_plane_text,
+                               plane_text_imgfont != NULL ? &plane_text_font : &lv_font_mplantin_16, 0);
 
     label_plane_result = lv_label_create(screen_planechase);
     lv_label_set_text(label_plane_result, "");
@@ -290,7 +413,7 @@ void build_planechase_screen(void)
     lv_timer_pause(plane_result_timer);
 
     button = lv_btn_create(screen_planechase);
-    lv_obj_set_size(button, 80, 40);
+    lv_obj_set_size(button, 85, 40);
     lv_obj_align(button, LV_ALIGN_BOTTOM_LEFT, 85, -30);
     lv_obj_add_event_cb(button, event_roll_planar_die, LV_EVENT_CLICKED, NULL);
     label_plane_roll = lv_label_create(button);
@@ -299,12 +422,13 @@ void build_planechase_screen(void)
     lv_obj_center(label_plane_roll);
 
     button = lv_btn_create(screen_planechase);
-    lv_obj_set_size(button, 80, 40);
+    lv_obj_set_size(button, 85, 40);
     lv_obj_align(button, LV_ALIGN_BOTTOM_RIGHT, -85, -30);
     lv_obj_add_event_cb(button, event_plane_next, LV_EVENT_CLICKED, NULL);
     label = lv_label_create(button);
-    lv_label_set_text(label, "New plane");
+    lv_label_set_text(label, "Planeswalk");
     lv_obj_center(label);
+    lv_obj_set_text_align(label, LV_TEXT_ALIGN_CENTER);
 
     label_plane_count = lv_label_create(screen_planechase);
     lv_obj_set_style_text_color(label_plane_count, lv_color_hex(0xA8D8BE), 0);

@@ -9,6 +9,7 @@ FIELDS = ("name", "type_line", "oracle_text")
 
 def c_string(value, paragraph_breaks=False):
     if paragraph_breaks:
+        value = value.replace("&#xe61d;", "\ue61d")
         value = value.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n")
         value = "\n\n".join(value.splitlines())
     else:

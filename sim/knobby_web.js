@@ -29,6 +29,137 @@ var ENVIRONMENT_IS_SHELL = !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_NODE && !ENVIR
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
+// include: C:\Users\naomi\AppData\Local\Temp\tmpmyjvfsj_.js
+
+  if (!Module['expectedDataFileDownloads']) Module['expectedDataFileDownloads'] = 0;
+  Module['expectedDataFileDownloads']++;
+  (() => {
+    // Do not attempt to redownload the virtual filesystem data when in a pthread or a Wasm Worker context.
+    var isPthread = typeof ENVIRONMENT_IS_PTHREAD != 'undefined' && ENVIRONMENT_IS_PTHREAD;
+    var isWasmWorker = typeof ENVIRONMENT_IS_WASM_WORKER != 'undefined' && ENVIRONMENT_IS_WASM_WORKER;
+    if (isPthread || isWasmWorker) return;
+    var isNode = globalThis.process && globalThis.process.versions && globalThis.process.versions.node && globalThis.process.type != 'renderer';
+    async function loadPackage(metadata) {
+
+      var PACKAGE_PATH = '';
+      if (typeof window === 'object') {
+        PACKAGE_PATH = window['encodeURIComponent'](window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/')) + '/');
+      } else if (typeof process === 'undefined' && typeof location !== 'undefined') {
+        // web worker
+        PACKAGE_PATH = encodeURIComponent(location.pathname.substring(0, location.pathname.lastIndexOf('/')) + '/');
+      }
+      var PACKAGE_NAME = 'knobby_web.data';
+      var REMOTE_PACKAGE_BASE = 'knobby_web.data';
+      var REMOTE_PACKAGE_NAME = Module['locateFile'] ? Module['locateFile'](REMOTE_PACKAGE_BASE, '') : REMOTE_PACKAGE_BASE;
+      var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
+
+      async function fetchRemotePackage(packageName, packageSize) {
+        if (isNode) {
+          var contents = require('fs').readFileSync(packageName);
+          return new Uint8Array(contents).buffer;
+        }
+        if (!Module['dataFileDownloads']) Module['dataFileDownloads'] = {};
+        try {
+          var response = await fetch(packageName);
+        } catch (e) {
+          throw new Error(`Network Error: ${packageName}`, {e});
+        }
+        if (!response.ok) {
+          throw new Error(`${response.status}: ${response.url}`);
+        }
+
+        const chunks = [];
+        const headers = response.headers;
+        const total = Number(headers.get('Content-Length') || packageSize);
+        let loaded = 0;
+
+        Module['setStatus'] && Module['setStatus']('Downloading data...');
+        const reader = response.body.getReader();
+
+        while (1) {
+          var {done, value} = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          loaded += value.length;
+          Module['dataFileDownloads'][packageName] = {loaded, total};
+
+          let totalLoaded = 0;
+          let totalSize = 0;
+
+          for (const download of Object.values(Module['dataFileDownloads'])) {
+            totalLoaded += download.loaded;
+            totalSize += download.total;
+          }
+
+          Module['setStatus'] && Module['setStatus'](`Downloading data... (${totalLoaded}/${totalSize})`);
+        }
+
+        const packageData = new Uint8Array(chunks.map((c) => c.length).reduce((a, b) => a + b, 0));
+        let offset = 0;
+        for (const chunk of chunks) {
+          packageData.set(chunk, offset);
+          offset += chunk.length;
+        }
+        return packageData.buffer;
+      }
+
+      var fetchPromise;
+      var fetched = Module['getPreloadedPackage'] && Module['getPreloadedPackage'](REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE);
+
+      if (!fetched) {
+        // Note that we don't use await here because we want to execute the
+        // the rest of this function immediately.
+        fetchPromise = fetchRemotePackage(REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE);
+      }
+
+    async function runWithFS(Module) {
+
+      function assert(check, msg) {
+        if (!check) throw new Error(msg);
+      }
+Module['FS_createPath']("/", "knobby", true, true);
+Module['FS_createPath']("/knobby", "data", true, true);
+Module['FS_createPath']("/knobby/data", "planes", true, true);
+
+      async function processPackageData(arrayBuffer) {
+        assert(arrayBuffer, 'Loading data file failed.');
+        assert(arrayBuffer.constructor.name === ArrayBuffer.name, 'bad input to processPackageData ' + arrayBuffer.constructor.name);
+        var byteArray = new Uint8Array(arrayBuffer);
+        var curr;
+        // Reuse the bytearray from the XHR as the source for file reads.
+          for (var file of metadata['files']) {
+            var name = file['filename'];
+            var data = byteArray.subarray(file['start'], file['end']);
+            // canOwn this data in the filesystem, it is a slice into the heap that will never change
+        Module['FS_createDataFile'](name, null, data, true, true, true);
+          }
+          Module['removeRunDependency']('datafile_knobby_web.data');
+      }
+      Module['addRunDependency']('datafile_knobby_web.data');
+
+      if (!Module['preloadResults']) Module['preloadResults'] = {};
+
+      Module['preloadResults'][PACKAGE_NAME] = {fromCache: false};
+      if (!fetched) {
+        fetched = await fetchPromise;
+      }
+      await processPackageData(fetched);
+
+    }
+    // Detect whether the module JS file has already been loaded.
+    if (Module['FS_createPath']) {
+      runWithFS(Module);
+    } else {
+      if (!Module['preRun']) Module['preRun'] = [];
+      Module['preRun'].push(runWithFS); // FS is not initialized yet, wait for it
+    }
+
+    }
+    loadPackage({"files": [{"filename": "/knobby/data/planes/000.sjpg", "start": 0, "end": 20824}, {"filename": "/knobby/data/planes/001.sjpg", "start": 20824, "end": 36071}, {"filename": "/knobby/data/planes/002.sjpg", "start": 36071, "end": 52365}, {"filename": "/knobby/data/planes/003.sjpg", "start": 52365, "end": 74111}, {"filename": "/knobby/data/planes/004.sjpg", "start": 74111, "end": 89421}, {"filename": "/knobby/data/planes/005.sjpg", "start": 89421, "end": 107605}, {"filename": "/knobby/data/planes/006.sjpg", "start": 107605, "end": 130208}, {"filename": "/knobby/data/planes/007.sjpg", "start": 130208, "end": 145853}, {"filename": "/knobby/data/planes/008.sjpg", "start": 145853, "end": 159413}, {"filename": "/knobby/data/planes/009.sjpg", "start": 159413, "end": 178873}, {"filename": "/knobby/data/planes/010.sjpg", "start": 178873, "end": 192943}, {"filename": "/knobby/data/planes/011.sjpg", "start": 192943, "end": 208991}, {"filename": "/knobby/data/planes/012.sjpg", "start": 208991, "end": 227623}, {"filename": "/knobby/data/planes/013.sjpg", "start": 227623, "end": 244644}, {"filename": "/knobby/data/planes/014.sjpg", "start": 244644, "end": 259025}, {"filename": "/knobby/data/planes/015.sjpg", "start": 259025, "end": 280409}, {"filename": "/knobby/data/planes/016.sjpg", "start": 280409, "end": 295948}, {"filename": "/knobby/data/planes/017.sjpg", "start": 295948, "end": 314842}, {"filename": "/knobby/data/planes/018.sjpg", "start": 314842, "end": 331554}, {"filename": "/knobby/data/planes/019.sjpg", "start": 331554, "end": 353889}, {"filename": "/knobby/data/planes/020.sjpg", "start": 353889, "end": 370544}, {"filename": "/knobby/data/planes/021.sjpg", "start": 370544, "end": 384187}, {"filename": "/knobby/data/planes/022.sjpg", "start": 384187, "end": 404344}, {"filename": "/knobby/data/planes/023.sjpg", "start": 404344, "end": 426079}, {"filename": "/knobby/data/planes/024.sjpg", "start": 426079, "end": 449098}, {"filename": "/knobby/data/planes/025.sjpg", "start": 449098, "end": 463224}, {"filename": "/knobby/data/planes/026.sjpg", "start": 463224, "end": 477147}, {"filename": "/knobby/data/planes/027.sjpg", "start": 477147, "end": 493508}, {"filename": "/knobby/data/planes/028.sjpg", "start": 493508, "end": 522289}, {"filename": "/knobby/data/planes/029.sjpg", "start": 522289, "end": 536045}, {"filename": "/knobby/data/planes/030.sjpg", "start": 536045, "end": 553265}, {"filename": "/knobby/data/planes/031.sjpg", "start": 553265, "end": 574298}, {"filename": "/knobby/data/planes/032.sjpg", "start": 574298, "end": 594172}, {"filename": "/knobby/data/planes/033.sjpg", "start": 594172, "end": 612885}, {"filename": "/knobby/data/planes/034.sjpg", "start": 612885, "end": 627384}, {"filename": "/knobby/data/planes/035.sjpg", "start": 627384, "end": 646811}, {"filename": "/knobby/data/planes/036.sjpg", "start": 646811, "end": 658729}, {"filename": "/knobby/data/planes/037.sjpg", "start": 658729, "end": 677315}, {"filename": "/knobby/data/planes/038.sjpg", "start": 677315, "end": 695918}, {"filename": "/knobby/data/planes/039.sjpg", "start": 695918, "end": 713661}, {"filename": "/knobby/data/planes/040.sjpg", "start": 713661, "end": 731079}, {"filename": "/knobby/data/planes/041.sjpg", "start": 731079, "end": 742254}, {"filename": "/knobby/data/planes/042.sjpg", "start": 742254, "end": 756846}, {"filename": "/knobby/data/planes/043.sjpg", "start": 756846, "end": 773615}, {"filename": "/knobby/data/planes/044.sjpg", "start": 773615, "end": 788744}, {"filename": "/knobby/data/planes/045.sjpg", "start": 788744, "end": 800684}, {"filename": "/knobby/data/planes/046.sjpg", "start": 800684, "end": 817811}, {"filename": "/knobby/data/planes/047.sjpg", "start": 817811, "end": 831166}, {"filename": "/knobby/data/planes/048.sjpg", "start": 831166, "end": 847466}, {"filename": "/knobby/data/planes/049.sjpg", "start": 847466, "end": 861140}, {"filename": "/knobby/data/planes/050.sjpg", "start": 861140, "end": 876313}, {"filename": "/knobby/data/planes/051.sjpg", "start": 876313, "end": 892629}, {"filename": "/knobby/data/planes/052.sjpg", "start": 892629, "end": 906977}, {"filename": "/knobby/data/planes/053.sjpg", "start": 906977, "end": 923668}, {"filename": "/knobby/data/planes/054.sjpg", "start": 923668, "end": 940820}, {"filename": "/knobby/data/planes/055.sjpg", "start": 940820, "end": 962955}, {"filename": "/knobby/data/planes/056.sjpg", "start": 962955, "end": 976475}, {"filename": "/knobby/data/planes/057.sjpg", "start": 976475, "end": 996086}, {"filename": "/knobby/data/planes/058.sjpg", "start": 996086, "end": 1011758}, {"filename": "/knobby/data/planes/059.sjpg", "start": 1011758, "end": 1029623}, {"filename": "/knobby/data/planes/060.sjpg", "start": 1029623, "end": 1046327}, {"filename": "/knobby/data/planes/061.sjpg", "start": 1046327, "end": 1069249}, {"filename": "/knobby/data/planes/062.sjpg", "start": 1069249, "end": 1084297}, {"filename": "/knobby/data/planes/063.sjpg", "start": 1084297, "end": 1098777}, {"filename": "/knobby/data/planes/064.sjpg", "start": 1098777, "end": 1114799}, {"filename": "/knobby/data/planes/065.sjpg", "start": 1114799, "end": 1128017}, {"filename": "/knobby/data/planes/066.sjpg", "start": 1128017, "end": 1144966}, {"filename": "/knobby/data/planes/067.sjpg", "start": 1144966, "end": 1157952}, {"filename": "/knobby/data/planes/068.sjpg", "start": 1157952, "end": 1171738}, {"filename": "/knobby/data/planes/069.sjpg", "start": 1171738, "end": 1193789}, {"filename": "/knobby/data/planes/070.sjpg", "start": 1193789, "end": 1207053}, {"filename": "/knobby/data/planes/071.sjpg", "start": 1207053, "end": 1225190}, {"filename": "/knobby/data/planes/072.sjpg", "start": 1225190, "end": 1248115}, {"filename": "/knobby/data/planes/073.sjpg", "start": 1248115, "end": 1265473}, {"filename": "/knobby/data/planes/074.sjpg", "start": 1265473, "end": 1282675}, {"filename": "/knobby/data/planes/075.sjpg", "start": 1282675, "end": 1295092}, {"filename": "/knobby/data/planes/076.sjpg", "start": 1295092, "end": 1310216}, {"filename": "/knobby/data/planes/077.sjpg", "start": 1310216, "end": 1322603}, {"filename": "/knobby/data/planes/078.sjpg", "start": 1322603, "end": 1341460}, {"filename": "/knobby/data/planes/079.sjpg", "start": 1341460, "end": 1356297}, {"filename": "/knobby/data/planes/080.sjpg", "start": 1356297, "end": 1375565}, {"filename": "/knobby/data/planes/081.sjpg", "start": 1375565, "end": 1404435}, {"filename": "/knobby/data/planes/082.sjpg", "start": 1404435, "end": 1420625}, {"filename": "/knobby/data/planes/083.sjpg", "start": 1420625, "end": 1435517}, {"filename": "/knobby/data/planes/084.sjpg", "start": 1435517, "end": 1449202}, {"filename": "/knobby/data/planes/085.sjpg", "start": 1449202, "end": 1464496}, {"filename": "/knobby/data/planes/086.sjpg", "start": 1464496, "end": 1481501}, {"filename": "/knobby/data/planes/087.sjpg", "start": 1481501, "end": 1495852}, {"filename": "/knobby/data/planes/088.sjpg", "start": 1495852, "end": 1512621}, {"filename": "/knobby/data/planes/089.sjpg", "start": 1512621, "end": 1530098}, {"filename": "/knobby/data/planes/090.sjpg", "start": 1530098, "end": 1545366}, {"filename": "/knobby/data/planes/091.sjpg", "start": 1545366, "end": 1562184}, {"filename": "/knobby/data/planes/092.sjpg", "start": 1562184, "end": 1577762}, {"filename": "/knobby/data/planes/093.sjpg", "start": 1577762, "end": 1593848}, {"filename": "/knobby/data/planes/094.sjpg", "start": 1593848, "end": 1611082}, {"filename": "/knobby/data/planes/095.sjpg", "start": 1611082, "end": 1624930}, {"filename": "/knobby/data/planes/096.sjpg", "start": 1624930, "end": 1643802}, {"filename": "/knobby/data/planes/097.sjpg", "start": 1643802, "end": 1660140}, {"filename": "/knobby/data/planes/098.sjpg", "start": 1660140, "end": 1672458}, {"filename": "/knobby/data/planes/099.sjpg", "start": 1672458, "end": 1692829}, {"filename": "/knobby/data/planes/100.sjpg", "start": 1692829, "end": 1716304}, {"filename": "/knobby/data/planes/101.sjpg", "start": 1716304, "end": 1732183}, {"filename": "/knobby/data/planes/102.sjpg", "start": 1732183, "end": 1750256}, {"filename": "/knobby/data/planes/103.sjpg", "start": 1750256, "end": 1764400}, {"filename": "/knobby/data/planes/104.sjpg", "start": 1764400, "end": 1779452}, {"filename": "/knobby/data/planes/105.sjpg", "start": 1779452, "end": 1801282}, {"filename": "/knobby/data/planes/106.sjpg", "start": 1801282, "end": 1814146}, {"filename": "/knobby/data/planes/107.sjpg", "start": 1814146, "end": 1838628}, {"filename": "/knobby/data/planes/108.sjpg", "start": 1838628, "end": 1855723}, {"filename": "/knobby/data/planes/109.sjpg", "start": 1855723, "end": 1872809}, {"filename": "/knobby/data/planes/110.sjpg", "start": 1872809, "end": 1884956}, {"filename": "/knobby/data/planes/111.sjpg", "start": 1884956, "end": 1899172}, {"filename": "/knobby/data/planes/112.sjpg", "start": 1899172, "end": 1912289}, {"filename": "/knobby/data/planes/113.sjpg", "start": 1912289, "end": 1931576}, {"filename": "/knobby/data/planes/114.sjpg", "start": 1931576, "end": 1952249}, {"filename": "/knobby/data/planes/115.sjpg", "start": 1952249, "end": 1968494}, {"filename": "/knobby/data/planes/116.sjpg", "start": 1968494, "end": 1982640}, {"filename": "/knobby/data/planes/117.sjpg", "start": 1982640, "end": 1997530}, {"filename": "/knobby/data/planes/118.sjpg", "start": 1997530, "end": 2019610}, {"filename": "/knobby/data/planes/119.sjpg", "start": 2019610, "end": 2034696}, {"filename": "/knobby/data/planes/120.sjpg", "start": 2034696, "end": 2055979}, {"filename": "/knobby/data/planes/121.sjpg", "start": 2055979, "end": 2071790}, {"filename": "/knobby/data/planes/122.sjpg", "start": 2071790, "end": 2090386}, {"filename": "/knobby/data/planes/123.sjpg", "start": 2090386, "end": 2107883}, {"filename": "/knobby/data/planes/124.sjpg", "start": 2107883, "end": 2121124}, {"filename": "/knobby/data/planes/125.sjpg", "start": 2121124, "end": 2132665}, {"filename": "/knobby/data/planes/126.sjpg", "start": 2132665, "end": 2148663}, {"filename": "/knobby/data/planes/127.sjpg", "start": 2148663, "end": 2172003}, {"filename": "/knobby/data/planes/128.sjpg", "start": 2172003, "end": 2187133}, {"filename": "/knobby/data/planes/129.sjpg", "start": 2187133, "end": 2206591}, {"filename": "/knobby/data/planes/130.sjpg", "start": 2206591, "end": 2224876}, {"filename": "/knobby/data/planes/131.sjpg", "start": 2224876, "end": 2242216}, {"filename": "/knobby/data/planes/132.sjpg", "start": 2242216, "end": 2253976}, {"filename": "/knobby/data/planes/133.sjpg", "start": 2253976, "end": 2267037}, {"filename": "/knobby/data/planes/134.sjpg", "start": 2267037, "end": 2285442}, {"filename": "/knobby/data/planes/135.sjpg", "start": 2285442, "end": 2300854}, {"filename": "/knobby/data/planes/136.sjpg", "start": 2300854, "end": 2320517}, {"filename": "/knobby/data/planes/137.sjpg", "start": 2320517, "end": 2332937}, {"filename": "/knobby/data/planes/138.sjpg", "start": 2332937, "end": 2354136}], "remote_package_size": 2354136});
+
+  })();
+
+// end include: C:\Users\naomi\AppData\Local\Temp\tmpmyjvfsj_.js
 
 
 var programArgs = [];
@@ -3206,6 +3337,73 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
   
 
   
+  var stringToUTF8 = (str, outPtr, maxBytesToWrite) => {
+      return stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
+    };
+  
+  
+  
+  
+  function ___syscall_getdents64(fd, dirp, count) {
+  try {
+  
+      var stream = SYSCALLS.getStreamFromFD(fd)
+      stream.getdents ||= FS.readdir(stream.path);
+  
+      var struct_size = 280;
+      var pos = 0;
+      var off = FS.llseek(stream, 0, 1);
+  
+      var startIdx = Math.floor(off / struct_size);
+      var endIdx = Math.min(stream.getdents.length, startIdx + Math.floor(count/struct_size))
+      for (var idx = startIdx; idx < endIdx; idx++) {
+        var id;
+        var type;
+        var name = stream.getdents[idx];
+        if (name === '.') {
+          id = stream.node.id;
+          type = 4;
+        }
+        else if (name === '..') {
+          var lookup = FS.lookupPath(stream.path, { parent: true });
+          id = lookup.node.id;
+          type = 4;
+        }
+        else {
+          var child;
+          try {
+            child = FS.lookupNode(stream.node, name);
+          } catch (e) {
+            // If the entry is not a directory, file, or symlink, nodefs
+            // lookupNode will raise EINVAL. Skip these and continue.
+            if (e?.errno === 28) {
+              continue;
+            }
+            throw e;
+          }
+          id = child.id;
+          type = FS.isChrdev(child.mode) ? 2 : // character device.
+                 FS.isDir(child.mode) ? 4 :    // directory
+                 FS.isLink(child.mode) ? 10 :   // symbolic link.
+                 8;                            // regular file.
+        }
+        HEAP64[((dirp + pos)>>3)] = BigInt(id);
+        HEAP64[(((dirp + pos)+(8))>>3)] = BigInt((idx + 1) * struct_size);
+        HEAP16[(((dirp + pos)+(16))>>1)] = 280;
+        HEAP8[(dirp + pos)+(18)] = type;
+        stringToUTF8(name, dirp + pos + 19, 256);
+        pos += struct_size;
+      }
+      FS.llseek(stream, idx * struct_size, 0);
+      return pos;
+    } catch (e) {
+    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+    return -e.errno;
+  }
+  }
+  
+
+  
   
   
   
@@ -4551,10 +4749,6 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
     };
 
   
-  
-  var stringToUTF8 = (str, outPtr, maxBytesToWrite) => {
-      return stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
-    };
   
   var stringToNewUTF8 = (str) => {
       var size = lengthBytesUTF8(str) + 1;
@@ -7921,6 +8115,7 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
 
 
 
+
   
   
   
@@ -8039,6 +8234,18 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
       return (...args) => ccall(ident, returnType, argTypes, args, opts);
     };
 
+  var FS_createPath = (...args) => FS.createPath(...args);
+
+
+
+  var FS_unlink = (...args) => FS.unlink(...args);
+
+  var FS_createLazyFile = (...args) => FS.createLazyFile(...args);
+
+  var FS_createDevice = (...args) => FS.createDevice(...args);
+
+
+
   var createContext = Browser.createContext;
 
   FS.createPreloadedFile = FS_createPreloadedFile;
@@ -8090,9 +8297,17 @@ if (Module['printErr']) err = Module['printErr'];
 }
 
 // Begin runtime exports
+  Module['addRunDependency'] = addRunDependency;
+  Module['removeRunDependency'] = removeRunDependency;
   Module['ccall'] = ccall;
   Module['cwrap'] = cwrap;
   Module['createContext'] = createContext;
+  Module['FS_preloadFile'] = FS_preloadFile;
+  Module['FS_unlink'] = FS_unlink;
+  Module['FS_createPath'] = FS_createPath;
+  Module['FS_createDevice'] = FS_createDevice;
+  Module['FS_createDataFile'] = FS_createDataFile;
+  Module['FS_createLazyFile'] = FS_createLazyFile;
   // End runtime exports
   // Begin JS library exports
   // End JS library exports
@@ -8100,22 +8315,22 @@ if (Module['printErr']) err = Module['printErr'];
 // end include: postlibrary.js
 
 var ASM_CONSTS = {
-  312772: ($0) => { var str = UTF8ToString($0) + '\n\n' + 'Abort/Retry/Ignore/AlwaysIgnore? [ariA] :'; var reply = window.prompt(str, "i"); if (reply === null) { reply = "i"; } return reply.length === 1 ? reply.charCodeAt(0) : -1; },  
- 312987: () => { if (typeof(AudioContext) !== 'undefined') { return true; } else if (typeof(webkitAudioContext) !== 'undefined') { return true; } return false; },  
- 313134: () => { if ((typeof(navigator.mediaDevices) !== 'undefined') && (typeof(navigator.mediaDevices.getUserMedia) !== 'undefined')) { return true; } else if (typeof(navigator.webkitGetUserMedia) !== 'undefined') { return true; } return false; },  
- 313368: ($0) => { if(typeof(Module['SDL2']) === 'undefined') { Module['SDL2'] = {}; } var SDL2 = Module['SDL2']; if (!$0) { SDL2.audio = {}; } else { SDL2.capture = {}; } if (!SDL2.audioContext) { if (typeof(AudioContext) !== 'undefined') { SDL2.audioContext = new AudioContext(); } else if (typeof(webkitAudioContext) !== 'undefined') { SDL2.audioContext = new webkitAudioContext(); } if (SDL2.audioContext) { if ((typeof navigator.userActivation) === 'undefined') { autoResumeAudioContext(SDL2.audioContext); } } } return SDL2.audioContext === undefined ? -1 : 0; },  
- 313920: () => { var SDL2 = Module['SDL2']; return SDL2.audioContext.sampleRate; },  
- 313988: ($0, $1, $2, $3) => { var SDL2 = Module['SDL2']; var have_microphone = function(stream) { if (SDL2.capture.silenceTimer !== undefined) { clearInterval(SDL2.capture.silenceTimer); SDL2.capture.silenceTimer = undefined; SDL2.capture.silenceBuffer = undefined } SDL2.capture.mediaStreamNode = SDL2.audioContext.createMediaStreamSource(stream); SDL2.capture.scriptProcessorNode = SDL2.audioContext.createScriptProcessor($1, $0, 1); SDL2.capture.scriptProcessorNode.onaudioprocess = function(audioProcessingEvent) { if ((SDL2 === undefined) || (SDL2.capture === undefined)) { return; } audioProcessingEvent.outputBuffer.getChannelData(0).fill(0.0); SDL2.capture.currentCaptureBuffer = audioProcessingEvent.inputBuffer; dynCall('vp', $2, [$3]); }; SDL2.capture.mediaStreamNode.connect(SDL2.capture.scriptProcessorNode); SDL2.capture.scriptProcessorNode.connect(SDL2.audioContext.destination); SDL2.capture.stream = stream; }; var no_microphone = function(error) { }; SDL2.capture.silenceBuffer = SDL2.audioContext.createBuffer($0, $1, SDL2.audioContext.sampleRate); SDL2.capture.silenceBuffer.getChannelData(0).fill(0.0); var silence_callback = function() { SDL2.capture.currentCaptureBuffer = SDL2.capture.silenceBuffer; dynCall('vp', $2, [$3]); }; SDL2.capture.silenceTimer = setInterval(silence_callback, ($1 / SDL2.audioContext.sampleRate) * 1000); if ((navigator.mediaDevices !== undefined) && (navigator.mediaDevices.getUserMedia !== undefined)) { navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(have_microphone).catch(no_microphone); } else if (navigator.webkitGetUserMedia !== undefined) { navigator.webkitGetUserMedia({ audio: true, video: false }, have_microphone, no_microphone); } },  
- 315681: ($0, $1, $2, $3) => { var SDL2 = Module['SDL2']; SDL2.audio.scriptProcessorNode = SDL2.audioContext['createScriptProcessor']($1, 0, $0); SDL2.audio.scriptProcessorNode['onaudioprocess'] = function (e) { if ((SDL2 === undefined) || (SDL2.audio === undefined)) { return; } if (SDL2.audio.silenceTimer !== undefined) { clearInterval(SDL2.audio.silenceTimer); SDL2.audio.silenceTimer = undefined; SDL2.audio.silenceBuffer = undefined; } SDL2.audio.currentOutputBuffer = e['outputBuffer']; dynCall('vp', $2, [$3]); }; SDL2.audio.scriptProcessorNode['connect'](SDL2.audioContext['destination']); if (SDL2.audioContext.state === 'suspended') { SDL2.audio.silenceBuffer = SDL2.audioContext.createBuffer($0, $1, SDL2.audioContext.sampleRate); SDL2.audio.silenceBuffer.getChannelData(0).fill(0.0); var silence_callback = function() { if ((typeof navigator.userActivation) !== 'undefined') { if (navigator.userActivation.hasBeenActive) { SDL2.audioContext.resume(); } } SDL2.audio.currentOutputBuffer = SDL2.audio.silenceBuffer; dynCall('vp', $2, [$3]); SDL2.audio.currentOutputBuffer = undefined; }; SDL2.audio.silenceTimer = setInterval(silence_callback, ($1 / SDL2.audioContext.sampleRate) * 1000); } },  
- 316856: ($0, $1) => { var SDL2 = Module['SDL2']; var numChannels = SDL2.capture.currentCaptureBuffer.numberOfChannels; for (var c = 0; c < numChannels; ++c) { var channelData = SDL2.capture.currentCaptureBuffer.getChannelData(c); if (channelData.length != $1) { throw 'Web Audio capture buffer length mismatch! Destination size: ' + channelData.length + ' samples vs expected ' + $1 + ' samples!'; } if (numChannels == 1) { for (var j = 0; j < $1; ++j) { setValue($0 + (j * 4), channelData[j], 'float'); } } else { for (var j = 0; j < $1; ++j) { setValue($0 + (((j * numChannels) + c) * 4), channelData[j], 'float'); } } } },  
- 317461: ($0, $1) => { var SDL2 = Module['SDL2']; var buf = $0 >>> 2; var numChannels = SDL2.audio.currentOutputBuffer['numberOfChannels']; for (var c = 0; c < numChannels; ++c) { var channelData = SDL2.audio.currentOutputBuffer['getChannelData'](c); if (channelData.length != $1) { throw 'Web Audio output buffer length mismatch! Destination size: ' + channelData.length + ' samples vs expected ' + $1 + ' samples!'; } for (var j = 0; j < $1; ++j) { channelData[j] = HEAPF32[buf + (j*numChannels + c)]; } } },  
- 317950: ($0) => { var SDL2 = Module['SDL2']; if ($0) { if (SDL2.capture.silenceTimer !== undefined) { clearInterval(SDL2.capture.silenceTimer); } if (SDL2.capture.stream !== undefined) { var tracks = SDL2.capture.stream.getAudioTracks(); for (var i = 0; i < tracks.length; i++) { SDL2.capture.stream.removeTrack(tracks[i]); } } if (SDL2.capture.scriptProcessorNode !== undefined) { SDL2.capture.scriptProcessorNode.onaudioprocess = function(audioProcessingEvent) {}; SDL2.capture.scriptProcessorNode.disconnect(); } if (SDL2.capture.mediaStreamNode !== undefined) { SDL2.capture.mediaStreamNode.disconnect(); } SDL2.capture = undefined; } else { if (SDL2.audio.scriptProcessorNode != undefined) { SDL2.audio.scriptProcessorNode.disconnect(); } if (SDL2.audio.silenceTimer !== undefined) { clearInterval(SDL2.audio.silenceTimer); } SDL2.audio = undefined; } if ((SDL2.audioContext !== undefined) && (SDL2.audio === undefined) && (SDL2.capture === undefined)) { SDL2.audioContext.close(); SDL2.audioContext = undefined; } },  
- 318956: ($0, $1, $2) => { var w = $0; var h = $1; var pixels = $2; if (!Module['SDL2']) Module['SDL2'] = {}; var SDL2 = Module['SDL2']; if (SDL2.ctxCanvas !== Module['canvas']) { SDL2.ctx = Browser.createContext(Module['canvas'], false, true); SDL2.ctxCanvas = Module['canvas']; } if (SDL2.w !== w || SDL2.h !== h || SDL2.imageCtx !== SDL2.ctx) { SDL2.image = SDL2.ctx.createImageData(w, h); SDL2.w = w; SDL2.h = h; SDL2.imageCtx = SDL2.ctx; } var data = SDL2.image.data; var src = pixels / 4; var dst = 0; var num; if (typeof CanvasPixelArray !== 'undefined' && data instanceof CanvasPixelArray) { num = data.length; while (dst < num) { var val = HEAP32[src]; data[dst ] = val & 0xff; data[dst+1] = (val >> 8) & 0xff; data[dst+2] = (val >> 16) & 0xff; data[dst+3] = 0xff; src++; dst += 4; } } else { if (SDL2.data32Data !== data) { SDL2.data32 = new Int32Array(data.buffer); SDL2.data8 = new Uint8Array(data.buffer); SDL2.data32Data = data; } var data32 = SDL2.data32; num = data32.length; data32.set(HEAP32.subarray(src, src + num)); var data8 = SDL2.data8; var i = 3; var j = i + 4*num; if (num % 8 == 0) { while (i < j) { data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; } } else { while (i < j) { data8[i] = 0xff; i = i + 4 | 0; } } } SDL2.ctx.putImageData(SDL2.image, 0, 0); },  
- 320422: ($0, $1, $2, $3, $4) => { var w = $0; var h = $1; var hot_x = $2; var hot_y = $3; var pixels = $4; var canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h; var ctx = canvas.getContext("2d"); var image = ctx.createImageData(w, h); var data = image.data; var src = pixels / 4; var dst = 0; var num; if (typeof CanvasPixelArray !== 'undefined' && data instanceof CanvasPixelArray) { num = data.length; while (dst < num) { var val = HEAP32[src]; data[dst ] = val & 0xff; data[dst+1] = (val >> 8) & 0xff; data[dst+2] = (val >> 16) & 0xff; data[dst+3] = (val >> 24) & 0xff; src++; dst += 4; } } else { var data32 = new Int32Array(data.buffer); num = data32.length; data32.set(HEAP32.subarray(src, src + num)); } ctx.putImageData(image, 0, 0); var url = hot_x === 0 && hot_y === 0 ? "url(" + canvas.toDataURL() + "), auto" : "url(" + canvas.toDataURL() + ") " + hot_x + " " + hot_y + ", auto"; var urlBuf = _malloc(url.length + 1); stringToUTF8(url, urlBuf, url.length + 1); return urlBuf; },  
- 321410: ($0) => { if (Module['canvas']) { Module['canvas'].style['cursor'] = UTF8ToString($0); } },  
- 321493: () => { if (Module['canvas']) { Module['canvas'].style['cursor'] = 'none'; } },  
- 321562: () => { return window.innerWidth; },  
- 321592: () => { return window.innerHeight; }
+  315188: ($0) => { var str = UTF8ToString($0) + '\n\n' + 'Abort/Retry/Ignore/AlwaysIgnore? [ariA] :'; var reply = window.prompt(str, "i"); if (reply === null) { reply = "i"; } return reply.length === 1 ? reply.charCodeAt(0) : -1; },  
+ 315403: () => { if (typeof(AudioContext) !== 'undefined') { return true; } else if (typeof(webkitAudioContext) !== 'undefined') { return true; } return false; },  
+ 315550: () => { if ((typeof(navigator.mediaDevices) !== 'undefined') && (typeof(navigator.mediaDevices.getUserMedia) !== 'undefined')) { return true; } else if (typeof(navigator.webkitGetUserMedia) !== 'undefined') { return true; } return false; },  
+ 315784: ($0) => { if(typeof(Module['SDL2']) === 'undefined') { Module['SDL2'] = {}; } var SDL2 = Module['SDL2']; if (!$0) { SDL2.audio = {}; } else { SDL2.capture = {}; } if (!SDL2.audioContext) { if (typeof(AudioContext) !== 'undefined') { SDL2.audioContext = new AudioContext(); } else if (typeof(webkitAudioContext) !== 'undefined') { SDL2.audioContext = new webkitAudioContext(); } if (SDL2.audioContext) { if ((typeof navigator.userActivation) === 'undefined') { autoResumeAudioContext(SDL2.audioContext); } } } return SDL2.audioContext === undefined ? -1 : 0; },  
+ 316336: () => { var SDL2 = Module['SDL2']; return SDL2.audioContext.sampleRate; },  
+ 316404: ($0, $1, $2, $3) => { var SDL2 = Module['SDL2']; var have_microphone = function(stream) { if (SDL2.capture.silenceTimer !== undefined) { clearInterval(SDL2.capture.silenceTimer); SDL2.capture.silenceTimer = undefined; SDL2.capture.silenceBuffer = undefined } SDL2.capture.mediaStreamNode = SDL2.audioContext.createMediaStreamSource(stream); SDL2.capture.scriptProcessorNode = SDL2.audioContext.createScriptProcessor($1, $0, 1); SDL2.capture.scriptProcessorNode.onaudioprocess = function(audioProcessingEvent) { if ((SDL2 === undefined) || (SDL2.capture === undefined)) { return; } audioProcessingEvent.outputBuffer.getChannelData(0).fill(0.0); SDL2.capture.currentCaptureBuffer = audioProcessingEvent.inputBuffer; dynCall('vp', $2, [$3]); }; SDL2.capture.mediaStreamNode.connect(SDL2.capture.scriptProcessorNode); SDL2.capture.scriptProcessorNode.connect(SDL2.audioContext.destination); SDL2.capture.stream = stream; }; var no_microphone = function(error) { }; SDL2.capture.silenceBuffer = SDL2.audioContext.createBuffer($0, $1, SDL2.audioContext.sampleRate); SDL2.capture.silenceBuffer.getChannelData(0).fill(0.0); var silence_callback = function() { SDL2.capture.currentCaptureBuffer = SDL2.capture.silenceBuffer; dynCall('vp', $2, [$3]); }; SDL2.capture.silenceTimer = setInterval(silence_callback, ($1 / SDL2.audioContext.sampleRate) * 1000); if ((navigator.mediaDevices !== undefined) && (navigator.mediaDevices.getUserMedia !== undefined)) { navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(have_microphone).catch(no_microphone); } else if (navigator.webkitGetUserMedia !== undefined) { navigator.webkitGetUserMedia({ audio: true, video: false }, have_microphone, no_microphone); } },  
+ 318097: ($0, $1, $2, $3) => { var SDL2 = Module['SDL2']; SDL2.audio.scriptProcessorNode = SDL2.audioContext['createScriptProcessor']($1, 0, $0); SDL2.audio.scriptProcessorNode['onaudioprocess'] = function (e) { if ((SDL2 === undefined) || (SDL2.audio === undefined)) { return; } if (SDL2.audio.silenceTimer !== undefined) { clearInterval(SDL2.audio.silenceTimer); SDL2.audio.silenceTimer = undefined; SDL2.audio.silenceBuffer = undefined; } SDL2.audio.currentOutputBuffer = e['outputBuffer']; dynCall('vp', $2, [$3]); }; SDL2.audio.scriptProcessorNode['connect'](SDL2.audioContext['destination']); if (SDL2.audioContext.state === 'suspended') { SDL2.audio.silenceBuffer = SDL2.audioContext.createBuffer($0, $1, SDL2.audioContext.sampleRate); SDL2.audio.silenceBuffer.getChannelData(0).fill(0.0); var silence_callback = function() { if ((typeof navigator.userActivation) !== 'undefined') { if (navigator.userActivation.hasBeenActive) { SDL2.audioContext.resume(); } } SDL2.audio.currentOutputBuffer = SDL2.audio.silenceBuffer; dynCall('vp', $2, [$3]); SDL2.audio.currentOutputBuffer = undefined; }; SDL2.audio.silenceTimer = setInterval(silence_callback, ($1 / SDL2.audioContext.sampleRate) * 1000); } },  
+ 319272: ($0, $1) => { var SDL2 = Module['SDL2']; var numChannels = SDL2.capture.currentCaptureBuffer.numberOfChannels; for (var c = 0; c < numChannels; ++c) { var channelData = SDL2.capture.currentCaptureBuffer.getChannelData(c); if (channelData.length != $1) { throw 'Web Audio capture buffer length mismatch! Destination size: ' + channelData.length + ' samples vs expected ' + $1 + ' samples!'; } if (numChannels == 1) { for (var j = 0; j < $1; ++j) { setValue($0 + (j * 4), channelData[j], 'float'); } } else { for (var j = 0; j < $1; ++j) { setValue($0 + (((j * numChannels) + c) * 4), channelData[j], 'float'); } } } },  
+ 319877: ($0, $1) => { var SDL2 = Module['SDL2']; var buf = $0 >>> 2; var numChannels = SDL2.audio.currentOutputBuffer['numberOfChannels']; for (var c = 0; c < numChannels; ++c) { var channelData = SDL2.audio.currentOutputBuffer['getChannelData'](c); if (channelData.length != $1) { throw 'Web Audio output buffer length mismatch! Destination size: ' + channelData.length + ' samples vs expected ' + $1 + ' samples!'; } for (var j = 0; j < $1; ++j) { channelData[j] = HEAPF32[buf + (j*numChannels + c)]; } } },  
+ 320366: ($0) => { var SDL2 = Module['SDL2']; if ($0) { if (SDL2.capture.silenceTimer !== undefined) { clearInterval(SDL2.capture.silenceTimer); } if (SDL2.capture.stream !== undefined) { var tracks = SDL2.capture.stream.getAudioTracks(); for (var i = 0; i < tracks.length; i++) { SDL2.capture.stream.removeTrack(tracks[i]); } } if (SDL2.capture.scriptProcessorNode !== undefined) { SDL2.capture.scriptProcessorNode.onaudioprocess = function(audioProcessingEvent) {}; SDL2.capture.scriptProcessorNode.disconnect(); } if (SDL2.capture.mediaStreamNode !== undefined) { SDL2.capture.mediaStreamNode.disconnect(); } SDL2.capture = undefined; } else { if (SDL2.audio.scriptProcessorNode != undefined) { SDL2.audio.scriptProcessorNode.disconnect(); } if (SDL2.audio.silenceTimer !== undefined) { clearInterval(SDL2.audio.silenceTimer); } SDL2.audio = undefined; } if ((SDL2.audioContext !== undefined) && (SDL2.audio === undefined) && (SDL2.capture === undefined)) { SDL2.audioContext.close(); SDL2.audioContext = undefined; } },  
+ 321372: ($0, $1, $2) => { var w = $0; var h = $1; var pixels = $2; if (!Module['SDL2']) Module['SDL2'] = {}; var SDL2 = Module['SDL2']; if (SDL2.ctxCanvas !== Module['canvas']) { SDL2.ctx = Browser.createContext(Module['canvas'], false, true); SDL2.ctxCanvas = Module['canvas']; } if (SDL2.w !== w || SDL2.h !== h || SDL2.imageCtx !== SDL2.ctx) { SDL2.image = SDL2.ctx.createImageData(w, h); SDL2.w = w; SDL2.h = h; SDL2.imageCtx = SDL2.ctx; } var data = SDL2.image.data; var src = pixels / 4; var dst = 0; var num; if (typeof CanvasPixelArray !== 'undefined' && data instanceof CanvasPixelArray) { num = data.length; while (dst < num) { var val = HEAP32[src]; data[dst ] = val & 0xff; data[dst+1] = (val >> 8) & 0xff; data[dst+2] = (val >> 16) & 0xff; data[dst+3] = 0xff; src++; dst += 4; } } else { if (SDL2.data32Data !== data) { SDL2.data32 = new Int32Array(data.buffer); SDL2.data8 = new Uint8Array(data.buffer); SDL2.data32Data = data; } var data32 = SDL2.data32; num = data32.length; data32.set(HEAP32.subarray(src, src + num)); var data8 = SDL2.data8; var i = 3; var j = i + 4*num; if (num % 8 == 0) { while (i < j) { data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; data8[i] = 0xff; i = i + 4 | 0; } } else { while (i < j) { data8[i] = 0xff; i = i + 4 | 0; } } } SDL2.ctx.putImageData(SDL2.image, 0, 0); },  
+ 322838: ($0, $1, $2, $3, $4) => { var w = $0; var h = $1; var hot_x = $2; var hot_y = $3; var pixels = $4; var canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h; var ctx = canvas.getContext("2d"); var image = ctx.createImageData(w, h); var data = image.data; var src = pixels / 4; var dst = 0; var num; if (typeof CanvasPixelArray !== 'undefined' && data instanceof CanvasPixelArray) { num = data.length; while (dst < num) { var val = HEAP32[src]; data[dst ] = val & 0xff; data[dst+1] = (val >> 8) & 0xff; data[dst+2] = (val >> 16) & 0xff; data[dst+3] = (val >> 24) & 0xff; src++; dst += 4; } } else { var data32 = new Int32Array(data.buffer); num = data32.length; data32.set(HEAP32.subarray(src, src + num)); } ctx.putImageData(image, 0, 0); var url = hot_x === 0 && hot_y === 0 ? "url(" + canvas.toDataURL() + "), auto" : "url(" + canvas.toDataURL() + ") " + hot_x + " " + hot_y + ", auto"; var urlBuf = _malloc(url.length + 1); stringToUTF8(url, urlBuf, url.length + 1); return urlBuf; },  
+ 323826: ($0) => { if (Module['canvas']) { Module['canvas'].style['cursor'] = UTF8ToString($0); } },  
+ 323909: () => { if (Module['canvas']) { Module['canvas'].style['cursor'] = 'none'; } },  
+ 323978: () => { return window.innerWidth; },  
+ 324008: () => { return window.innerHeight; }
 };
 
 // Imports from the Wasm binary.
@@ -8147,6 +8362,8 @@ var wasmImports = {
   __syscall_fcntl64: ___syscall_fcntl64,
   /** @export */
   __syscall_fstat64: ___syscall_fstat64,
+  /** @export */
+  __syscall_getdents64: ___syscall_getdents64,
   /** @export */
   __syscall_ioctl: ___syscall_ioctl,
   /** @export */
