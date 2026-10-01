@@ -6,10 +6,8 @@
 #include "ui_mp.h"
 #include "esp_random.h"
 #include "resources/planes_data.h"
-#include "extra/others/imgfont/lv_imgfont.h"
 #include <limits.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if !defined(SIMULATOR)
 #include "esp_heap_caps.h"
@@ -20,20 +18,16 @@
 
 LV_IMG_DECLARE(planeswalker);
 LV_IMG_DECLARE(chaos);
+LV_FONT_DECLARE(lv_font_beleren_bold_16);
+LV_FONT_DECLARE(lv_font_beleren_bold_14);
 
 #define CHAOS_ICON_SIZE 16
 #define CHAOS_SYMBOL_CODEPOINT 0xE61D
 
 static uint8_t chaos_small_map[CHAOS_ICON_SIZE * CHAOS_ICON_SIZE / 2];
-static const lv_img_dsc_t chaos_small = {
-    .header.cf = LV_IMG_CF_ALPHA_4BIT,
-    .header.w = CHAOS_ICON_SIZE,
-    .header.h = CHAOS_ICON_SIZE,
-    .data_size = sizeof(chaos_small_map),
-    .data = chaos_small_map,
-};
 static lv_font_t plane_text_font;
-static lv_font_t *plane_text_imgfont = NULL;
+static lv_font_t chaos_font;
+static bool plane_text_font_ready = false;
 
 static uint8_t planeswalker_small_map[16 * 16 / 2];
 static const lv_img_dsc_t planeswalker_small = {
@@ -78,19 +72,31 @@ static uint8_t chaos_alpha_at(int x, int y)
     return (x & 1) ? pixel_pair & 0x0f : pixel_pair >> 4;
 }
 
-static bool chaos_imgfont_path(const lv_font_t *font, void *img_src, uint16_t len,
-                               uint32_t unicode, uint32_t unicode_next)
+static bool chaos_glyph_dsc(const lv_font_t *font, lv_font_glyph_dsc_t *glyph,
+                            uint32_t unicode, uint32_t unicode_next)
 {
     (void)font;
     (void)unicode_next;
-    if (unicode != CHAOS_SYMBOL_CODEPOINT || len < sizeof(chaos_small)) return false;
-    memcpy(img_src, &chaos_small, sizeof(chaos_small));
+    if (unicode != CHAOS_SYMBOL_CODEPOINT) return false;
+    glyph->adv_w = CHAOS_ICON_SIZE;
+    glyph->box_w = CHAOS_ICON_SIZE;
+    glyph->box_h = CHAOS_ICON_SIZE;
+    glyph->ofs_x = 0;
+    glyph->ofs_y = 0;
+    glyph->bpp = 4;
+    glyph->is_placeholder = false;
     return true;
+}
+
+static const uint8_t *chaos_glyph_bitmap(const lv_font_t *font, uint32_t unicode)
+{
+    (void)font;
+    return unicode == CHAOS_SYMBOL_CODEPOINT ? chaos_small_map : NULL;
 }
 
 static void init_plane_text_font(void)
 {
-    if (plane_text_imgfont != NULL) return;
+    if (plane_text_font_ready) return;
 
     for (int y = 0; y < CHAOS_ICON_SIZE; y++) {
         for (int x = 0; x < CHAOS_ICON_SIZE; x++) {
@@ -103,10 +109,13 @@ static void init_plane_text_font(void)
         }
     }
 
-    plane_text_imgfont = lv_imgfont_create(17, chaos_imgfont_path);
-    if (plane_text_imgfont == NULL) return;
     plane_text_font = lv_font_mplantin_20;
-    plane_text_font.fallback = plane_text_imgfont;
+    chaos_font.get_glyph_dsc = chaos_glyph_dsc;
+    chaos_font.get_glyph_bitmap = chaos_glyph_bitmap;
+    chaos_font.line_height = plane_text_font.line_height;
+    chaos_font.base_line = plane_text_font.base_line;
+    plane_text_font.fallback = &chaos_font;
+    plane_text_font_ready = true;
 }
 
 static bool cache_plane_background(int card_index)
@@ -151,8 +160,22 @@ static void refresh_planechase_screen(void)
 {
     int card_index = plane_deck[plane_deck_position];
     const plane_card_t *card = &plane_cards[card_index];
+    const lv_font_t *name_fonts[] = {
+        &lv_font_beleren_bold_20, &lv_font_beleren_bold_18,
+        &lv_font_beleren_bold_16, &lv_font_beleren_bold_14
+    };
+    const lv_font_t *name_font = name_fonts[3];
     char count[24];
 
+    for (int index = 0; index < 3; index++) {
+        if (lv_txt_get_width(card->name, strlen(card->name), name_fonts[index],
+                             lv_obj_get_style_text_letter_space(label_plane_name, 0),
+                             LV_TEXT_FLAG_NONE) <= lv_obj_get_width(label_plane_name)) {
+            name_font = name_fonts[index];
+            break;
+        }
+    }
+    lv_obj_set_style_text_font(label_plane_name, name_font, 0);
     if (!cache_plane_background(card_index)) {
         snprintf(plane_image_path, sizeof(plane_image_path), "S:/planes/%03d.sjpg", card_index);
         lv_img_set_src(image_plane_background, plane_image_path);
@@ -302,11 +325,8 @@ void planechase_set_active(bool active, int players)
 static void event_plane_next(lv_event_t *e)
 {
     (void)e;
-    if (plane_deck_count > 1) {
-        int next_position = (int)(esp_random() % (unsigned)(plane_deck_count - 1));
-        if (next_position >= plane_deck_position) next_position++;
-        plane_deck_position = next_position;
-    }
+    if (plane_deck_count > 0)
+        plane_deck_position = (plane_deck_position + 1) % plane_deck_count;
     refresh_planechase_screen();
     clear_plane_result();
 }
@@ -408,8 +428,7 @@ void build_planechase_screen(void)
     label_plane_text = lv_label_create(text_area);
     lv_obj_set_width(label_plane_text, 252);
     lv_obj_set_style_text_color(label_plane_text, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_plane_text,
-                               plane_text_imgfont != NULL ? &plane_text_font : &lv_font_mplantin_20, 0);
+    lv_obj_set_style_text_font(label_plane_text, &plane_text_font, 0);
     
     // Dice roll result
     label_plane_result = lv_label_create(screen_planechase);
@@ -442,5 +461,5 @@ void build_planechase_screen(void)
     // Plane count label (## / 40)
     label_plane_count = lv_label_create(screen_planechase);
     lv_obj_set_style_text_color(label_plane_count, lv_color_hex(0xA8D8BE), 0);
-    lv_obj_align(label_plane_count, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_align(label_plane_count, LV_ALIGN_BOTTOM_MID, 0, -7);
 }

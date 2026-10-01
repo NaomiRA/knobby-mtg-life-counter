@@ -861,7 +861,7 @@ void refresh_multiplayer_timer_ui(void)
         lv_obj_set_style_text_align(mp_state.timer_turn_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
-        lv_obj_set_style_border_width(mp_state.timer_circle, 2, 0);
+        lv_obj_set_style_border_width(mp_state.timer_circle, 6, 0);
         lv_obj_add_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
         return;
