@@ -5,6 +5,11 @@
 
 #define DEFAULT_NUM_PLAYERS 4
 
+#define TWO_HG_CMD_OFF 0
+#define TWO_HG_CMD_INDIVIDUAL 1
+#define TWO_HG_CMD_CUMULATIVE 2
+#define TWO_HG_CMD_COUNT 3
+
 void knob_nvs_init(void);
 void settings_save(void);
 
@@ -32,6 +37,10 @@ int nvs_get_timer_mode(void);
 void nvs_set_timer_mode(int value);
 int nvs_get_life_total(void);
 void nvs_set_life_total(int value);
+int nvs_get_two_headed_giant(void);
+void nvs_set_two_headed_giant(int value);
+int nvs_get_two_hg_cmd_mode(void);
+void nvs_set_two_hg_cmd_mode(int value);
 
 int nvs_get_auto_eliminate(void);
 void nvs_set_auto_eliminate(int value);

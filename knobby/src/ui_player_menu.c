@@ -99,6 +99,15 @@ void refresh_counter_edit_ui(void) {
 // ---------- navigation ----------
 void open_player_menu(int player_index) {
   menu_player = player_index;
+  lv_obj_t *cmd_btn = lv_obj_get_child(screen_player_menu, 1);
+  bool cmd_off = nvs_get_two_headed_giant() &&
+                 nvs_get_two_hg_cmd_mode() == TWO_HG_CMD_OFF;
+  lv_label_set_text(lv_obj_get_child(cmd_btn, 0),
+                    cmd_off ? "Commander\nDamage Off" : "Commander\nDamage");
+  if (cmd_off)
+    lv_obj_add_state(cmd_btn, LV_STATE_DISABLED);
+  else
+    lv_obj_clear_state(cmd_btn, LV_STATE_DISABLED);
   load_screen_if_needed(screen_player_menu);
 }
 
@@ -136,6 +145,8 @@ static void event_menu_rename_all(lv_event_t *e) {
 
 static void event_menu_cmd_damage(lv_event_t *e) {
   (void)e;
+  if (nvs_get_two_headed_giant() && nvs_get_two_hg_cmd_mode() == TWO_HG_CMD_OFF)
+    return;
   prepare_cmd_damage_for_player(menu_player);
   open_select_screen();
 }

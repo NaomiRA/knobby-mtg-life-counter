@@ -409,6 +409,7 @@ void reset_all_values_for_game_mode(void)
 void quick_start_game(void)
 {
     nvs_set_num_players(DEFAULT_NUM_PLAYERS);
+    nvs_set_two_headed_giant(0);
     nvs_set_timer_mode(TIMER_MODE_TURN);
     nvs_set_life_total(DEFAULT_LIFE_TOTAL);
     settings_save();

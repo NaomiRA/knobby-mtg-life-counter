@@ -12,6 +12,7 @@ Features/intended use:
 - Life tracking from -999 to 999 with delta being shown as preview for 4 seconds
 - Support for 1 to 4 players
 - Commander damage for up to 4 players, damage to all players
+- Two-Headed Giant (2HG) for four players: P1/P4 and P2/P3 share team life; all other counters stay individual. Cycle commander damage Off, Individual (21 to one player), or Cumulative (31 from one commander across teammates). One player's elimination ends the game.
 - Configurable turn timer (minutes:seconds by default), total game timer, or timer off
 - Brightness and battery guesstimate (WIP)
 - Up to 10 coin flips, random player picks, or D6/D10/D20 rolls at once

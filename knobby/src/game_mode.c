@@ -21,6 +21,8 @@ static lv_obj_t *label_gm_timer_mode = NULL;
 static lv_obj_t *label_gm_life_total = NULL;
 static lv_obj_t *btn_gm_planechase = NULL;
 static lv_obj_t *label_gm_planechase = NULL;
+static lv_obj_t *btn_gm_two_hg = NULL;
+static lv_obj_t *label_gm_two_hg = NULL;
 
 // ---------- custom life widgets ----------
 static lv_obj_t *label_custom_life_value = NULL;
@@ -30,6 +32,8 @@ static int temp_num_players;
 static int temp_timer_mode;
 static int temp_life_total;
 static bool temp_planechase;
+static bool temp_two_hg;
+static int temp_two_hg_cmd_mode;
 
 static const char *get_timer_mode_name(int mode)
 {
@@ -45,7 +49,7 @@ void refresh_game_mode_menu_ui(void)
 {
     char buf[32];
 
-    snprintf(buf, sizeof(buf), "Players\n%d", temp_num_players);
+    snprintf(buf, sizeof(buf), "Players\n%d", temp_two_hg ? 4 : temp_num_players);
     lv_label_set_text(label_gm_num_players, buf);
 
     snprintf(buf, sizeof(buf), "Timer\n%s", get_timer_mode_name(temp_timer_mode));
@@ -57,6 +61,12 @@ void refresh_game_mode_menu_ui(void)
     lv_label_set_text(label_gm_planechase, temp_planechase ? "Planechase\nSelected" : "Planechase");
     lv_obj_set_style_bg_color(btn_gm_planechase,
         lv_color_hex(temp_planechase ? 0x176B56 : 0x1A1A2E), 0);
+    lv_label_set_text(label_gm_two_hg, !temp_two_hg ? "2HG" :
+        temp_two_hg_cmd_mode == TWO_HG_CMD_OFF ? "2HG\nCmd Off" :
+        temp_two_hg_cmd_mode == TWO_HG_CMD_CUMULATIVE ? "2HG\nCumulative" :
+        "2HG\nIndividual");
+    lv_obj_set_style_bg_color(btn_gm_two_hg,
+        lv_color_hex(temp_two_hg ? 0x176B56 : 0x1A1A2E), 0);
 }
 
 void refresh_custom_life_ui(void)
@@ -73,6 +83,8 @@ void open_game_mode_menu(void)
     temp_timer_mode = nvs_get_timer_mode();
     temp_life_total = nvs_get_life_total();
     temp_planechase = planechase_active;
+    temp_two_hg = nvs_get_two_headed_giant();
+    temp_two_hg_cmd_mode = nvs_get_two_hg_cmd_mode();
     refresh_game_mode_menu_ui();
     lv_scr_load(screen_game_mode_menu);
 }
@@ -90,6 +102,8 @@ void change_custom_life(int delta)
 static void event_gm_num_players(lv_event_t *e)
 {
     (void)e;
+
+    if (temp_two_hg) return;
 
     temp_num_players++;
     if (temp_num_players > MAX_DISPLAY_PLAYERS) temp_num_players = 1;
@@ -133,6 +147,22 @@ static void event_gm_planechase(lv_event_t *e)
     refresh_game_mode_menu_ui();
 }
 
+static void event_gm_two_hg(lv_event_t *e)
+{
+    (void)e;
+    if (!temp_two_hg) {
+        temp_two_hg = true;
+        temp_two_hg_cmd_mode = TWO_HG_CMD_OFF;
+        temp_num_players = 4;
+        temp_life_total = 30;
+    } else if (temp_two_hg_cmd_mode == TWO_HG_CMD_CUMULATIVE) {
+        temp_two_hg = false;
+    } else {
+        temp_two_hg_cmd_mode++;
+    }
+    refresh_game_mode_menu_ui();
+}
+
 static void event_gm_apply(lv_event_t *e)
 {
     (void)e;
@@ -144,6 +174,8 @@ static void event_gm_apply(lv_event_t *e)
        not synced.) */
     net_sync_leave_game();
     nvs_set_num_players(temp_num_players);
+    nvs_set_two_headed_giant(temp_two_hg);
+    nvs_set_two_hg_cmd_mode(temp_two_hg_cmd_mode);
     nvs_set_timer_mode(temp_timer_mode);
     nvs_set_life_total(temp_life_total);
     settings_save();
@@ -173,7 +205,7 @@ void build_game_mode_menu_screen(void)
     };
     quad_item_t more_items[4] = {
         {"Planechase",          event_gm_planechase,       true, LV_EVENT_CLICKED},
-        {"2HG",                 NULL,                      false, LV_EVENT_CLICKED},
+        {"2HG",                 event_gm_two_hg,           true, LV_EVENT_CLICKED},
         {"Bounty Hunter",       NULL,                      false, LV_EVENT_CLICKED},
         {"More\n(Hold to apply\n& start game)", event_gm_more,           true, LV_EVENT_SHORT_CLICKED},
     };
@@ -181,6 +213,8 @@ void build_game_mode_menu_screen(void)
     build_quad_screen(&screen_game_mode_more, more_items);
     btn_gm_planechase = lv_obj_get_child(screen_game_mode_more, 0);
     label_gm_planechase = lv_obj_get_child(btn_gm_planechase, 0);
+    btn_gm_two_hg = lv_obj_get_child(screen_game_mode_more, 1);
+    label_gm_two_hg = lv_obj_get_child(btn_gm_two_hg, 0);
 
     btn = lv_obj_get_child(screen_game_mode_menu, 3);
     lv_obj_add_event_cb(btn, event_gm_apply, LV_EVENT_LONG_PRESSED, NULL);
