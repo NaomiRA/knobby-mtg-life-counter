@@ -100,7 +100,7 @@ void build_quad_screen(lv_obj_t **screen, quad_item_t items[4])
         lv_obj_t *lbl = lv_label_create(btn);
         lv_label_set_text(lbl, items[i].label);
         lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
-        lv_obj_set_style_text_font(lbl, &lv_font_beleren_bold_16, 0);
+        lv_obj_set_style_text_font(lbl, &lv_font_beleren_bold_20, 0);
         lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(lbl, LV_ALIGN_CENTER, lx[i],
             (items[i].icon != NULL) ? ly[i] + 10 : ly[i]);
@@ -715,7 +715,7 @@ void build_quad_menus(void)
     timer_hint = lv_label_create(timer_btn);
     lv_label_set_text(timer_hint, "(Hold to apply)");
     lv_obj_set_style_text_color(timer_hint, lv_color_hex(0x888888), 0);
-    lv_obj_set_style_text_font(timer_hint, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(timer_hint, &lv_font_beleren_bold_20, 0);
     lv_obj_set_style_text_align(timer_hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(timer_hint, LV_ALIGN_CENTER, -10, 50);
     refresh_tool_timer_label();
@@ -744,13 +744,13 @@ void build_settings_screen(void)
     label_settings_value = lv_label_create(screen_settings);
     lv_label_set_text(label_settings_value, "Brightness: 80%");
     lv_obj_set_style_text_color(label_settings_value, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_settings_value, &lv_font_beleren_bold_32, 0);
+    lv_obj_set_style_text_font(label_settings_value, &lv_font_beleren_bold_36, 0);
     lv_obj_align(label_settings_value, LV_ALIGN_CENTER, 0, -14);
 
     label_settings_hint = lv_label_create(screen_settings);
     lv_label_set_text(label_settings_hint, "Turn knob for brightness");
     lv_obj_set_style_text_color(label_settings_hint, lv_color_hex(0x6A6A6A), 0);
-    lv_obj_set_style_text_font(label_settings_hint, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(label_settings_hint, &lv_font_beleren_bold_18, 0);
     lv_obj_align(label_settings_hint, LV_ALIGN_CENTER, 0, 24);
 }
 
@@ -765,19 +765,19 @@ void build_battery_screen(void)
     lv_obj_t *title = lv_label_create(screen_battery);
     lv_label_set_text(title, "Battery");
     lv_obj_set_style_text_color(title, lv_color_white(), 0);
-    lv_obj_set_style_text_font(title, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(title, &lv_font_beleren_bold_26, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 60);
 
     label_settings_battery = lv_label_create(screen_battery);
     lv_label_set_text(label_settings_battery, "Battery: --%");
     lv_obj_set_style_text_color(label_settings_battery, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_settings_battery, &lv_font_beleren_bold_32, 0);
+    lv_obj_set_style_text_font(label_settings_battery, &lv_font_beleren_bold_36, 0);
     lv_obj_align(label_settings_battery, LV_ALIGN_CENTER, 0, -10);
 
     label_settings_battery_detail = lv_label_create(screen_battery);
     lv_label_set_text(label_settings_battery_detail, "No calibrated reading");
     lv_obj_set_style_text_color(label_settings_battery_detail, lv_color_hex(0x7A7A7A), 0);
-    lv_obj_set_style_text_font(label_settings_battery_detail, &lv_font_beleren_bold_16, 0);
+    lv_obj_set_style_text_font(label_settings_battery_detail, &lv_font_beleren_bold_20, 0);
     lv_obj_align(label_settings_battery_detail, LV_ALIGN_CENTER, 0, 30);
 }
 
@@ -792,18 +792,18 @@ void build_rotate_screen(void)
     lv_obj_t *title = lv_label_create(screen_rotate);
     lv_label_set_text(title, "Rotate Screen");
     lv_obj_set_style_text_color(title, lv_color_white(), 0);
-    lv_obj_set_style_text_font(title, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(title, &lv_font_beleren_bold_26, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 60);
 
     label_rotate_value = lv_label_create(screen_rotate);
     lv_label_set_text(label_rotate_value, "0°");
     lv_obj_set_style_text_color(label_rotate_value, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_rotate_value, &lv_font_beleren_bold_32, 0);
+    lv_obj_set_style_text_font(label_rotate_value, &lv_font_beleren_bold_36, 0);
     lv_obj_align(label_rotate_value, LV_ALIGN_CENTER, 0, -10);
 
     lv_obj_t *hint = lv_label_create(screen_rotate);
     lv_label_set_text(hint, "Turn knob to rotate");
     lv_obj_set_style_text_color(hint, lv_color_hex(0x6A6A6A), 0);
-    lv_obj_set_style_text_font(hint, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(hint, &lv_font_beleren_bold_18, 0);
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 40);
 }

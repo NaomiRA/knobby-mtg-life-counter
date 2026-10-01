@@ -216,7 +216,7 @@ static void add_list_row(int idx, const char *text, lv_color_t color)
     lv_obj_t *lbl = lv_label_create(row);
     lv_label_set_text(lbl, text);
     lv_obj_set_style_text_color(lbl, color, 0);
-    lv_obj_set_style_text_font(lbl, &lv_font_beleren_bold_16, 0);
+    lv_obj_set_style_text_font(lbl, &lv_font_beleren_bold_20, 0);
     lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 8, 0);
 }
 
@@ -381,7 +381,7 @@ void build_rename_screen(void)
     /* Title (shared between modes) */
     label_name_title = lv_label_create(screen_player_name);
     lv_obj_set_style_text_color(label_name_title, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_name_title, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(label_name_title, &lv_font_beleren_bold_26, 0);
     lv_obj_align(label_name_title, LV_ALIGN_TOP_MID, 0, 18);
 
     /* --- List mode widgets --- */

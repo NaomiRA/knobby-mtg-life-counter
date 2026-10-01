@@ -12,7 +12,7 @@ static int cached_deselect_timeout = 0; /* index: 0=never, 1=5s, 2=15s, 3=30s */
 static int cached_orientation = ORIENTATION_MODE_ABSOLUTE;
 static int cached_display_rotation = 0; /* physical rotation, degrees = value * 90 */
 static int cached_menu_facing = 0; /* 0=Fixed (default), 1=Face Player */
-static int cached_num_players = 4;
+static int cached_num_players = DEFAULT_NUM_PLAYERS;
 static int cached_timer_mode = TIMER_MODE_TURN;
 static int cached_life_total = DEFAULT_LIFE_TOTAL;
 static int cached_auto_eliminate = 1; /* 1=ON (default), 0=OFF */
@@ -37,7 +37,7 @@ void knob_nvs_init(void)
         int8_t dt_val = 0;
         int8_t rot_val = 0;
         int8_t dr_val = 0;
-        int8_t np_val = 4;
+        int8_t np_val = DEFAULT_NUM_PLAYERS;
         int8_t tm_val = TIMER_MODE_TURN;
         int16_t lt_val = DEFAULT_LIFE_TOTAL;
 

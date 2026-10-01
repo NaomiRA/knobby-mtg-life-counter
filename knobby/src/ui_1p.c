@@ -9,6 +9,8 @@
 #include "storage.h"
 #include "hw.h"
 
+extern void quick_start_game(void);
+
 // ---------- screens ----------
 lv_obj_t *screen_1p = NULL;
 lv_obj_t *screen_select = NULL;
@@ -65,14 +67,14 @@ void refresh_turn_ui(void)
 
     if (planechase_active) {
         lv_label_set_text(label_turn, "Plane\nHold: end turn");
-        lv_obj_set_style_text_font(label_turn, &lv_font_beleren_bold_14, 0);
+        lv_obj_set_style_text_font(label_turn, &lv_font_beleren_bold_18, 0);
         lv_obj_clear_flag(turn_container, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(turn_live_dot, LV_OBJ_FLAG_HIDDEN);
         lv_obj_set_style_opa(turn_container, LV_OPA_COVER, 0);
         return;
     }
 
-    lv_obj_set_style_text_font(label_turn, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(label_turn, &lv_font_beleren_bold_26, 0);
     format_timer_elapsed(elapsed_buf, sizeof(elapsed_buf));
 
     if (turn_number <= 0) {
@@ -114,6 +116,16 @@ static void refresh_life_digits(void)
     lv_color_t c;
     char buf[16];
 
+    if (!life_preview_active && turn_number <= 0) {
+        lv_label_set_text(label_life_total, "Quick Start");
+        lv_obj_set_style_text_color(label_life_total, lv_color_white(), 0);
+        lv_obj_set_style_text_font(label_life_total, &lv_font_beleren_bold_26, 0);
+        lv_obj_align(label_life_total, LV_ALIGN_CENTER, 0, -6);
+        if (label_life_preview_total != NULL)
+            lv_obj_add_flag(label_life_preview_total, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
     if (life_preview_active) {
         c = negative ? lv_color_hex(0xFF1744)
                      : lv_color_hex(0x06D6A0);
@@ -128,6 +140,7 @@ static void refresh_life_digits(void)
 
     lv_label_set_text(label_life_total, buf);
     lv_obj_set_style_text_color(label_life_total, c, 0);
+    lv_obj_set_style_text_font(label_life_total, &lv_font_belerensmallcaps_bold_116, 0);
     lv_obj_align(label_life_total, LV_ALIGN_CENTER, 0, -6);
 
     if (life_preview_active && label_life_preview_total != NULL) {
@@ -250,8 +263,8 @@ static void style_select_entry(int i, int player_index)
         lv_obj_add_flag(select_rows[i], LV_OBJ_FLAG_CLICKABLE);
     }
 
-    lv_obj_set_style_text_font(label_enemy_name[i], &lv_font_beleren_bold_16, 0);
-    lv_obj_set_style_text_font(label_enemy_damage[i], &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(label_enemy_name[i], &lv_font_beleren_bold_20, 0);
+    lv_obj_set_style_text_font(label_enemy_damage[i], &lv_font_beleren_bold_26, 0);
     lv_obj_align(label_enemy_name[i], LV_ALIGN_TOP_MID, 0, 4);
     lv_obj_align(label_enemy_damage[i], LV_ALIGN_BOTTOM_MID, 0, -4);
 }
@@ -302,7 +315,7 @@ void refresh_damage_ui(void)
     if (selected_enemy < 0 || selected_enemy >= active_enemy_count) return;
 
     player_index = get_cmd_target_player_index(selected_enemy);
-    bg_color = get_player_active_color(player_index);
+    bg_color = get_player_base_color(player_index);
     text_color = get_player_text_color(player_index);
     lv_label_set_text(label_damage_title, player_names[player_index]);
     lv_obj_set_style_bg_color(screen_damage, bg_color, 0);
@@ -366,6 +379,13 @@ static void event_open_1p_menu(lv_event_t *e)
     lv_indev_wait_release(lv_indev_get_act());
 }
 
+static void event_start_quick_game(lv_event_t *e)
+{
+    (void)e;
+    if (turn_number <= 0 && !player_selection_animation_active())
+        quick_start_game();
+}
+
 static void event_select_enemy(lv_event_t *e)
 {
     int index = (int)(intptr_t)lv_event_get_user_data(e);
@@ -402,7 +422,7 @@ static const lv_font_t *get_counter_badge_font_1p(const counter_definition_t *de
         return &mana_counter_icons_16;
     }
 
-    return &lv_font_beleren_bold_14;
+    return &lv_font_beleren_bold_18;
 }
 
 static const char *get_counter_badge_text_1p(const counter_definition_t *definition)
@@ -434,7 +454,7 @@ static void create_counter_row_1p(lv_obj_t *parent, counter_type_t type,
     *value_out = lv_label_create(row);
     lv_label_set_text(*value_out, "0");
     lv_obj_set_style_text_color(*value_out, lv_color_white(), 0);
-    lv_obj_set_style_text_font(*value_out, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(*value_out, &lv_font_beleren_bold_18, 0);
     lv_obj_align(*value_out, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_style_text_align(*value_out, LV_TEXT_ALIGN_CENTER, 0);
 
@@ -463,6 +483,7 @@ void build_main_screen(void)
     life_hitbox = make_plain_box(screen_1p, 360, 360);
     lv_obj_align(life_hitbox, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(life_hitbox, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(life_hitbox, event_start_quick_game, LV_EVENT_SHORT_CLICKED, NULL);
     lv_obj_add_event_cb(life_hitbox, event_open_1p_menu, LV_EVENT_LONG_PRESSED, NULL);
 
     label_life_total = lv_label_create(screen_1p);
@@ -492,7 +513,7 @@ void build_main_screen(void)
     label_turn = lv_label_create(turn_container);
     lv_label_set_text(label_turn, "turn  0:00");
     lv_obj_set_style_text_color(label_turn, lv_color_hex(0xB8B8B8), 0);
-    lv_obj_set_style_text_font(label_turn, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(label_turn, &lv_font_beleren_bold_26, 0);
     lv_obj_align(label_turn, LV_ALIGN_CENTER, 0, 0);
 
     turn_live_dot = lv_obj_create(turn_container);
@@ -542,7 +563,7 @@ void build_select_screen(void)
     label_select_title = lv_label_create(screen_select);
     lv_label_set_text(label_select_title, "Choose player");
     lv_obj_set_style_text_color(label_select_title, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_select_title, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(label_select_title, &lv_font_beleren_bold_26, 0);
     lv_obj_align(label_select_title, LV_ALIGN_TOP_MID, 0, 30);
 
     container = lv_obj_create(screen_select);
@@ -562,12 +583,12 @@ void build_select_screen(void)
         lv_obj_add_event_cb(select_rows[i], event_select_enemy, LV_EVENT_CLICKED, (void *)(intptr_t)i);
 
         label_enemy_name[i] = lv_label_create(select_rows[i]);
-        lv_obj_set_style_text_font(label_enemy_name[i], &lv_font_beleren_bold_22, 0);
+        lv_obj_set_style_text_font(label_enemy_name[i], &lv_font_beleren_bold_26, 0);
         lv_obj_set_style_text_color(label_enemy_name[i], lv_color_white(), 0);
         lv_obj_align(label_enemy_name[i], LV_ALIGN_LEFT_MID, 16, 0);
 
         label_enemy_damage[i] = lv_label_create(select_rows[i]);
-        lv_obj_set_style_text_font(label_enemy_damage[i], &lv_font_beleren_bold_22, 0);
+        lv_obj_set_style_text_font(label_enemy_damage[i], &lv_font_beleren_bold_26, 0);
         lv_obj_set_style_text_color(label_enemy_damage[i], lv_palette_main(LV_PALETTE_RED), 0);
         lv_obj_align(label_enemy_damage[i], LV_ALIGN_RIGHT_MID, -16, 0);
     }
@@ -584,26 +605,26 @@ void build_damage_screen(void)
     label_damage_title = lv_label_create(screen_damage);
     lv_label_set_text(label_damage_title, "P1");
     lv_obj_set_style_text_color(label_damage_title, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_damage_title, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(label_damage_title, &lv_font_beleren_bold_26, 0);
     lv_obj_align(label_damage_title, LV_ALIGN_TOP_MID, 0, 28);
 
     label_damage_value = lv_label_create(screen_damage);
     lv_label_set_text(label_damage_value, "Damage: 0");
     lv_obj_set_style_text_color(label_damage_value, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_damage_value, &lv_font_beleren_bold_32, 0);
+    lv_obj_set_style_text_font(label_damage_value, &lv_font_beleren_bold_36, 0);
     lv_obj_align(label_damage_value, LV_ALIGN_CENTER, 0, -10);
 
     label_damage_hint = lv_label_create(screen_damage);
     lv_label_set_text(label_damage_hint, "Turn knob, then apply");
     lv_obj_set_style_text_color(label_damage_hint, lv_color_hex(0x6A6A6A), 0);
-    lv_obj_set_style_text_font(label_damage_hint, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(label_damage_hint, &lv_font_beleren_bold_18, 0);
     lv_obj_align(label_damage_hint, LV_ALIGN_CENTER, 0, 24);
 
     /* Pending knob delta, annotated above the running total */
     label_damage_delta = lv_label_create(screen_damage);
     lv_label_set_text(label_damage_delta, "");
     lv_obj_set_style_text_color(label_damage_delta, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_damage_delta, &lv_font_beleren_bold_32, 0);
+    lv_obj_set_style_text_font(label_damage_delta, &lv_font_beleren_bold_36, 0);
     lv_obj_align(label_damage_delta, LV_ALIGN_CENTER, 0, -48);
     lv_obj_add_flag(label_damage_delta, LV_OBJ_FLAG_HIDDEN);
 

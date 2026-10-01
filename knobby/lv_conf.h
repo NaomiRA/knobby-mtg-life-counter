@@ -389,14 +389,18 @@
     LV_FONT_DECLARE(lv_font_beleren_bold_48) \
     LV_FONT_DECLARE(lv_font_belerensmallcaps_bold_56) \
     LV_FONT_DECLARE(lv_font_belerensmallcaps_bold_44) \
-    LV_FONT_DECLARE(lv_font_beleren_bold_14) \
-    LV_FONT_DECLARE(lv_font_beleren_bold_16) \
+    LV_FONT_DECLARE(lv_font_beleren_bold_18) \
+    LV_FONT_DECLARE(lv_font_beleren_bold_20) \
     LV_FONT_DECLARE(lv_font_beleren_bold_22) \
+    LV_FONT_DECLARE(lv_font_beleren_bold_24) \
+    LV_FONT_DECLARE(lv_font_beleren_bold_26) \
     LV_FONT_DECLARE(lv_font_beleren_bold_32) \
-    LV_FONT_DECLARE(lv_font_mplantin_16)
+    LV_FONT_DECLARE(lv_font_beleren_bold_36) \
+    LV_FONT_DECLARE(lv_font_beleren_bold_48) \
+    LV_FONT_DECLARE(lv_font_mplantin_20)
 
 /*Always set a default font*/
-#define LV_FONT_DEFAULT &lv_font_beleren_bold_14
+#define LV_FONT_DEFAULT &lv_font_beleren_bold_18
 
 /*Enable handling large font and/or fonts with a lot of characters.
  *The limit depends on the font size, font face and bpp.

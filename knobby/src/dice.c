@@ -149,13 +149,13 @@ static void refresh_result(void)
         lv_label_set_text(result_labels[index], text);
         if (result_count == 1) {
             lv_obj_set_style_text_font(result_labels[index],
-                result_mode >= DICE_D6 ? &lv_font_belerensmallcaps_bold_116 : &lv_font_beleren_bold_32, 0);
+                result_mode >= DICE_D6 ? &lv_font_belerensmallcaps_bold_116 : &lv_font_beleren_bold_36, 0);
             lv_obj_set_width(result_labels[index], 270);
             lv_obj_set_style_text_align(result_labels[index], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_align(result_labels[index], LV_ALIGN_CENTER, 0, 0);
         } else {
             lv_obj_set_style_text_font(result_labels[index],
-                result_mode == DICE_PLAYER ? &lv_font_beleren_bold_14 : &lv_font_beleren_bold_22, 0);
+                result_mode == DICE_PLAYER ? &lv_font_beleren_bold_18 : &lv_font_beleren_bold_26, 0);
             lv_obj_align(result_labels[index], LV_ALIGN_TOP_LEFT,
                 80 + (index % 2) * 140, 100 + (index / 2) * 40);
             lv_obj_set_width(result_labels[index], 130);
@@ -291,7 +291,7 @@ static lv_obj_t *dice_button(lv_obj_t *parent, int x, int y, int width, int heig
     lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, user_data);
     lv_label_set_text(label, text);
     lv_obj_set_style_text_color(label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(label, &lv_font_beleren_bold_18, 0);
     lv_obj_center(label);
     return button;
 }
@@ -310,7 +310,7 @@ void build_dice_screen(void)
     label = lv_label_create(screen_dice);
     lv_label_set_text(label, "Dice");
     lv_obj_set_style_text_color(label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(label, &lv_font_beleren_bold_26, 0);
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 30);
 
     for (index = 0; index < DICE_MODE_COUNT; index++) {
@@ -328,12 +328,12 @@ void build_dice_screen(void)
 
     count_label = lv_label_create(screen_dice);
     lv_obj_set_style_text_color(count_label, lv_color_hex(0x06D6A0), 0);
-    lv_obj_set_style_text_font(count_label, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(count_label, &lv_font_beleren_bold_26, 0);
 
     empty_label = lv_label_create(screen_dice);
     lv_label_set_text(empty_label, "No eligible players");
     lv_obj_set_style_text_color(empty_label, lv_color_hex(0xF19B79), 0);
-    lv_obj_set_style_text_font(empty_label, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(empty_label, &lv_font_beleren_bold_18, 0);
     lv_obj_align(empty_label, LV_ALIGN_TOP_MID, 0, 265);
 
     roll_button = dice_button(screen_dice, 105, 293, 150, 43, "Roll", event_dice_roll, NULL);
@@ -347,11 +347,11 @@ void build_dice_screen(void)
 
     result_title = lv_label_create(screen_dice_result);
     lv_obj_set_style_text_color(result_title, lv_color_white(), 0);
-    lv_obj_set_style_text_font(result_title, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(result_title, &lv_font_beleren_bold_26, 0);
 
     result_total = lv_label_create(screen_dice_result);
     lv_obj_set_style_text_color(result_total, lv_color_hex(0x06D6A0), 0);
-    lv_obj_set_style_text_font(result_total, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(result_total, &lv_font_beleren_bold_26, 0);
 
     for (index = 0; index < DICE_MAX_ROLLS; index++) {
         result_labels[index] = lv_label_create(screen_dice_result);
@@ -359,7 +359,7 @@ void build_dice_screen(void)
         lv_obj_set_pos(result_labels[index], 75, 110 + index * 21);
         lv_obj_set_width(result_labels[index], 210);
         lv_obj_set_style_text_color(result_labels[index], lv_color_white(), 0);
-        lv_obj_set_style_text_font(result_labels[index], &lv_font_beleren_bold_14, 0);
+        lv_obj_set_style_text_font(result_labels[index], &lv_font_beleren_bold_18, 0);
     }
     dice_button(screen_dice_result, 105, 301, 150, 34, "Close", event_dice_close, NULL);
     refresh_dice_ui();

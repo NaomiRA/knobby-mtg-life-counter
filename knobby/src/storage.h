@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define DEFAULT_NUM_PLAYERS 4
+
 void knob_nvs_init(void);
 void settings_save(void);
 

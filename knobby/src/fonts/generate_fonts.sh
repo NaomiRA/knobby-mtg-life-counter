@@ -80,11 +80,12 @@ generate_font "lv_font_belerensmallcaps_bold_56" "$BELEREN_SMALLCAPS_BOLD" 56 "$
 generate_font "lv_font_belerensmallcaps_bold_44" "$BELEREN_SMALLCAPS_BOLD" 44 "$RANGE_DIGITS"
 
 # Beleren fonts for general UI text
-generate_font "lv_font_beleren_bold_14" "$BELEREN_BOLD" 14 "$RANGE_UI_TEXT"
-generate_font "lv_font_beleren_bold_16" "$BELEREN_BOLD" 16 "$RANGE_UI_TEXT"
+generate_font "lv_font_beleren_bold_18" "$BELEREN_BOLD" 18 "$RANGE_UI_TEXT"
+generate_font "lv_font_beleren_bold_20" "$BELEREN_BOLD" 20 "$RANGE_UI_TEXT"
 generate_font "lv_font_beleren_bold_22" "$BELEREN_BOLD" 22 "$RANGE_UI_TEXT"
-generate_font "lv_font_beleren_bold_32" "$BELEREN_BOLD" 32 "$RANGE_UI_TEXT"
-generate_font "lv_font_mplantin_16" "$MPLANTIN" 16 "$RANGE_UI_TEXT"
+generate_font "lv_font_beleren_bold_26" "$BELEREN_BOLD" 26 "$RANGE_UI_TEXT"
+generate_font "lv_font_beleren_bold_36" "$BELEREN_BOLD" 36 "$RANGE_UI_TEXT"
+generate_font "lv_font_mplantin_20" "$MPLANTIN" 20 "$RANGE_UI_TEXT"
 
 echo ""
 echo "Done! Generated fonts:"

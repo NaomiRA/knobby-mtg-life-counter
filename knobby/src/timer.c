@@ -8,6 +8,7 @@
 
 // Forward declaration
 extern void refresh_turn_ui(void);
+extern void refresh_player_ui(void);
 extern void back_to_main(void);
 
 // ---------- state ----------
@@ -99,8 +100,7 @@ void turn_timer_start_fresh_for_player(int player_index)
         lv_timer_resume(turn_blink_timer);
     }
 
-    refresh_turn_ui();
-    refresh_multiplayer_timer_ui();
+    refresh_player_ui();
 }
 
 void turn_timer_reset(void)
@@ -163,8 +163,6 @@ void event_turn_tap(lv_event_t *e)
         open_planechase_screen();
         return;
     }
-
-    if (nvs_get_timer_mode() == TIMER_MODE_OFF && !planechase_active) return;
 
     now = lv_tick_get();
     if (turn_number <= 0) {

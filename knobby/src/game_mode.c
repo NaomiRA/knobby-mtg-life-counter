@@ -8,7 +8,7 @@
 #include "net_sync.h"
 
 // Forward declarations
-extern void reset_all_values(void);
+extern void reset_all_values_for_game_mode(void);
 extern void back_to_main(void);
 
 // ---------- screens ----------
@@ -148,7 +148,7 @@ static void event_gm_apply(lv_event_t *e)
     nvs_set_life_total(temp_life_total);
     settings_save();
     planechase_set_active(temp_planechase, temp_num_players);
-    reset_all_values();
+    reset_all_values_for_game_mode();
     rebuild_multiplayer_layout(temp_num_players);
     back_to_main();
     lv_indev_wait_release(lv_indev_get_act());
@@ -169,13 +169,13 @@ void build_game_mode_menu_screen(void)
         {"Players\n4",          event_gm_num_players,      true, LV_EVENT_CLICKED},
         {"Timer\nTurn",         event_gm_timer_mode,       true, LV_EVENT_CLICKED},
         {"Life\n40",            event_gm_life_cycle,       true, LV_EVENT_SHORT_CLICKED},
-        {"More\n(Hold to apply)", event_gm_more,           true, LV_EVENT_SHORT_CLICKED},
+        {"More\n(Hold to apply\n& start game)", event_gm_more,           true, LV_EVENT_SHORT_CLICKED},
     };
     quad_item_t more_items[4] = {
         {"Planechase",          event_gm_planechase,       true, LV_EVENT_CLICKED},
         {"2HG",                 NULL,                      false, LV_EVENT_CLICKED},
         {"Bounty Hunter",       NULL,                      false, LV_EVENT_CLICKED},
-        {"More\n(Hold to apply)", event_gm_more,           true, LV_EVENT_SHORT_CLICKED},
+        {"More\n(Hold to apply\n& start game)", event_gm_more,           true, LV_EVENT_SHORT_CLICKED},
     };
     build_quad_screen(&screen_game_mode_menu, items);
     build_quad_screen(&screen_game_mode_more, more_items);
@@ -213,19 +213,19 @@ void build_custom_life_screen(void)
     title = lv_label_create(screen_custom_life);
     lv_label_set_text(title, "Life Total");
     lv_obj_set_style_text_color(title, lv_color_white(), 0);
-    lv_obj_set_style_text_font(title, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(title, &lv_font_beleren_bold_26, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 60);
 
     label_custom_life_value = lv_label_create(screen_custom_life);
     lv_label_set_text(label_custom_life_value, "40");
     lv_obj_set_style_text_color(label_custom_life_value, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_custom_life_value, &lv_font_beleren_bold_32, 0);
+    lv_obj_set_style_text_font(label_custom_life_value, &lv_font_beleren_bold_36, 0);
     lv_obj_align(label_custom_life_value, LV_ALIGN_CENTER, 0, -10);
 
     hint = lv_label_create(screen_custom_life);
     lv_label_set_text(hint, "Turn knob to adjust");
     lv_obj_set_style_text_color(hint, lv_color_hex(0x6A6A6A), 0);
-    lv_obj_set_style_text_font(hint, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(hint, &lv_font_beleren_bold_18, 0);
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 24);
 }
 
