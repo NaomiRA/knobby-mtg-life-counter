@@ -8,6 +8,7 @@
 
 // Forward declaration
 extern void refresh_turn_ui(void);
+extern void refresh_player_ui(void);
 extern void back_to_main(void);
 
 // ---------- state ----------
@@ -99,8 +100,7 @@ void turn_timer_start_fresh_for_player(int player_index)
         lv_timer_resume(turn_blink_timer);
     }
 
-    refresh_turn_ui();
-    refresh_multiplayer_timer_ui();
+    refresh_player_ui();
 }
 
 void turn_timer_reset(void)

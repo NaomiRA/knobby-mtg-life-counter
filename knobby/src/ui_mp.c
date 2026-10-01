@@ -8,6 +8,8 @@
 #include "game_mode.h"
 #include "planechase.h"
 
+extern void reset_all_values(void);
+
 static lv_obj_t *add_low_battery_icon(lv_obj_t *parent)
 {
     lv_obj_t *batt = lv_label_create(parent);
@@ -120,8 +122,8 @@ static struct {
     lv_obj_t *counter_values[MULTIPLAYER_COUNT][COUNTER_TYPE_COUNT];
     lv_obj_t *plane_cost_rows[MULTIPLAYER_COUNT];
     lv_obj_t *plane_cost_values[MULTIPLAYER_COUNT];
+    lv_obj_t *selection_outline;
     lv_obj_t *timer_circle;
-    lv_obj_t *timer_player_dot;
     lv_obj_t *timer_turn_label;
     lv_obj_t *timer_elapsed_label;
     const mp_layout_spec_t *layout;
@@ -185,7 +187,7 @@ static const lv_font_t *get_counter_badge_font(const counter_definition_t *defin
         return &mana_counter_icons_16;
     }
 
-    return &lv_font_beleren_bold_14;
+    return &lv_font_beleren_bold_18;
 }
 
 static const char *get_counter_badge_text(const counter_definition_t *definition)
@@ -231,7 +233,7 @@ static void create_counter_row(lv_obj_t *parent, counter_type_t type,
     *value_out = lv_label_create(row);
     lv_label_set_text(*value_out, "0");
     lv_obj_set_style_text_color(*value_out, get_player_text_color(player_index), 0);
-    lv_obj_set_style_text_font(*value_out, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(*value_out, &lv_font_beleren_bold_18, 0);
     lv_obj_align(*value_out, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_style_text_align(*value_out, LV_TEXT_ALIGN_CENTER, 0);
 
@@ -546,7 +548,7 @@ static void refresh_commander_damage(int panel_index, const mp_panel_spec_t *spe
                 break;
             }
         }
-        button_color = get_effective_player_color(source, color_index, LIFE_VIB_VIV);
+        button_color = get_effective_player_color(source, color_index, LIFE_VIB_MID);
         lv_obj_set_style_bg_color(button, button_color, 0);
         lv_obj_set_style_border_color(button,
             (inline_damage_target == spec->player_index && inline_damage_source == source)
@@ -656,7 +658,7 @@ static lv_color_t refresh_mp_panel(lv_obj_t *panel, lv_obj_t *life_lbl, lv_obj_t
     {
         int vib;
         if (selection_count() == 0) vib = LIFE_VIB_MID;
-        else vib = selected ? LIFE_VIB_VIV : LIFE_VIB_DIM;
+        else vib = selected ? LIFE_VIB_MID : LIFE_VIB_DIM;
         bg_color = get_effective_player_color(i, color_i, vib);
         text_color = color_is_light(bg_color) ? lv_color_black() : lv_color_white();
     }
@@ -753,6 +755,17 @@ void refresh_multiplayer_ui(void)
         text_color = refresh_mp_panel(panel, life_lbl, name_lbl,
                                       spec->player_index, spec->color_index);
 
+        if (!spec_is_wedge(spec)) {
+            bool selected = is_player_selected(spec->player_index);
+            lv_coord_t border_width = selected ? 3 : 1;
+            lv_color_t border_color = selected ? lv_color_white()
+                                               : lv_color_hex(MP_OUTLINE_COLOR);
+            if (lv_obj_get_style_border_width(panel, LV_PART_MAIN) != border_width)
+                lv_obj_set_style_border_width(panel, border_width, 0);
+            if (lv_obj_get_style_border_color(panel, LV_PART_MAIN).full != border_color.full)
+                lv_obj_set_style_border_color(panel, border_color, 0);
+        }
+
         if (layout->switch_font_by_orientation) {
             const lv_font_t *life_font;
             lv_coord_t life_pivot_y;
@@ -807,6 +820,7 @@ void refresh_multiplayer_ui(void)
                      wedge_geom[i].bis_deg, angle, text_color);
     }
 
+    if (mp_state.selection_outline != NULL) lv_obj_invalidate(mp_state.selection_outline);
     refresh_multiplayer_timer_ui();
 }
 
@@ -819,30 +833,37 @@ void refresh_multiplayer_timer_ui(void)
 
     if (mp_state.timer_circle == NULL) return;
 
+    if (turn_number <= 0) {
+        lv_label_set_text(mp_state.timer_turn_label, "Quick\nStart");
+        lv_obj_set_style_text_align(mp_state.timer_turn_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_font(mp_state.timer_turn_label, &lv_font_beleren_bold_20, 0);
+        lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_add_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
+        lv_obj_set_style_border_width(mp_state.timer_circle, 2, 0);
+        lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
     if (planechase_active && selection_count() > 0) {
         lv_label_set_text(mp_state.timer_turn_label, "View\nPlane");
         lv_obj_set_style_text_align(mp_state.timer_turn_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_add_flag(mp_state.timer_player_dot, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
+        lv_obj_set_style_border_width(mp_state.timer_circle, 2, 0);
         lv_obj_add_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
-    lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 6, -12);
-    lv_obj_clear_flag(mp_state.timer_player_dot, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, -12);
     lv_obj_clear_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
 
-    if (planechase_active && nvs_get_timer_mode() == TIMER_MODE_OFF) {
+    if (nvs_get_timer_mode() == TIMER_MODE_OFF) {
         lv_label_set_text(mp_state.timer_turn_label, "Timer");
         lv_label_set_text(mp_state.timer_elapsed_label, "OFF");
-        lv_obj_add_flag(mp_state.timer_player_dot, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
         lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
-        return;
-    }
-
-    if (!planechase_active && (!turn_ui_visible || nvs_get_timer_mode() == TIMER_MODE_OFF)) {
-        lv_obj_add_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
@@ -855,8 +876,9 @@ void refresh_multiplayer_timer_ui(void)
         }
     }
 
-    lv_obj_set_style_bg_color(mp_state.timer_player_dot,
-        get_effective_player_color(turn_player_index, color_index, LIFE_VIB_VIV), 0);
+    lv_obj_set_style_border_color(mp_state.timer_circle,
+        get_effective_player_color(turn_player_index, color_index, LIFE_VIB_MID), 0);
+    lv_obj_set_style_border_width(mp_state.timer_circle, 6, 0);
     snprintf(turn_buf, sizeof(turn_buf), "Turn %d", turn_number);
     format_timer_elapsed(elapsed_buf, sizeof(elapsed_buf));
     lv_label_set_text(mp_state.timer_turn_label, turn_buf);
@@ -865,6 +887,16 @@ void refresh_multiplayer_timer_ui(void)
 }
 
 /* ---------- events ---------- */
+static void event_center_circle_tap(lv_event_t *e)
+{
+    if (turn_number <= 0) {
+        if (!player_selection_animation_active()) reset_all_values();
+        return;
+    }
+
+    event_turn_tap(e);
+}
+
 static void event_inline_damage_select(lv_event_t *e)
 {
     int id = (int)(intptr_t)lv_event_get_user_data(e) - 1;
@@ -1072,7 +1104,7 @@ static void event_wedge_panel(lv_event_t *e)
     }
 }
 
-static void event_wedge_separators(lv_event_t *e)
+static void event_selection_outline(lv_event_t *e)
 {
     static const lv_point_t sep_center = {WEDGE_CX, WEDGE_CY};
     lv_draw_ctx_t *draw_ctx = lv_event_get_draw_ctx(e);
@@ -1084,6 +1116,177 @@ static void event_wedge_separators(lv_event_t *e)
     dsc.width = 2;
     for (s = 0; s < wedge_sep_count; s++) {
         lv_draw_line(draw_ctx, &dsc, &sep_center, &wedge_sep_ends[s]);
+    }
+
+    dsc.color = lv_color_white();
+    dsc.width = 6;
+    for (s = 0; s < mp_state.layout->panel_count; s++) {
+        const mp_panel_spec_t *spec = &mp_state.layout->panels[s];
+        lv_point_t start;
+        lv_point_t end;
+        lv_draw_arc_dsc_t arc_dsc;
+        uint16_t arc_start;
+        uint16_t arc_end;
+
+        if (!is_player_selected(spec->player_index)) continue;
+
+        if (spec_is_wedge(spec)) {
+            start.x = WEDGE_CX + wedge_polar(lv_trigo_cos(spec->wedge_start), 176);
+            start.y = WEDGE_CY + wedge_polar(lv_trigo_sin(spec->wedge_start), 176);
+            end.x = WEDGE_CX + wedge_polar(lv_trigo_cos(spec->wedge_end), 176);
+            end.y = WEDGE_CY + wedge_polar(lv_trigo_sin(spec->wedge_end), 176);
+            lv_draw_line(draw_ctx, &dsc, &sep_center, &start);
+            lv_draw_line(draw_ctx, &dsc, &sep_center, &end);
+            arc_start = (uint16_t)spec->wedge_start;
+            arc_end = (uint16_t)spec->wedge_end;
+        } else if (mp_state.layout->panel_count == 2) {
+            arc_start = (spec->y == 0) ? 180 : 0;
+            arc_end = arc_start + 180;
+        } else if (mp_state.layout->panel_count == 4) {
+            if (spec->x == 0)
+                arc_start = (spec->y == 0) ? 180 : 90;
+            else
+                arc_start = (spec->y == 0) ? 270 : 0;
+            arc_end = arc_start + 90;
+        } else {
+            continue;
+        }
+
+        lv_draw_arc_dsc_init(&arc_dsc);
+        arc_dsc.color = lv_color_white();
+        arc_dsc.width = 6;
+        arc_dsc.opa = LV_OPA_COVER;
+        lv_draw_arc(draw_ctx, &arc_dsc, &sep_center, 180, arc_start, arc_end);
+    }
+}
+
+static void event_timer_outline(lv_event_t *e)
+{
+    lv_draw_ctx_t *draw_ctx = lv_event_get_draw_ctx(e);
+    lv_draw_arc_dsc_t arc_dsc;
+    lv_draw_line_dsc_t line_dsc;
+    static const lv_point_t center = {WEDGE_CX, WEDGE_CY};
+    int active_start = 0;
+    int active_end = 0;
+    int i;
+    bool active_panel_found = false;
+    bool another_player_selected = false;
+
+    if (mp_state.layout == NULL || mp_state.timer_circle == NULL ||
+        lv_obj_has_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN)) return;
+
+    for (i = 0; i < mp_state.layout->panel_count; i++) {
+        int player = mp_state.layout->panels[i].player_index;
+        if (player != turn_player_index && is_player_selected(player)) {
+            another_player_selected = true;
+            break;
+        }
+    }
+
+    if (!(planechase_active &&
+          (selection_count() > 0 || nvs_get_timer_mode() == TIMER_MODE_OFF))) {
+        for (i = 0; i < mp_state.layout->panel_count; i++) {
+            const mp_panel_spec_t *spec = &mp_state.layout->panels[i];
+
+            if (spec->player_index != turn_player_index) continue;
+            if (spec_is_wedge(spec)) {
+                active_start = spec->wedge_start;
+                active_end = spec->wedge_end;
+            } else if (mp_state.layout->panel_count == 2) {
+                active_start = (spec->y == 0) ? 180 : 0;
+                active_end = active_start + 180;
+            } else if (mp_state.layout->panel_count == 4) {
+                if (spec->x == 0)
+                    active_start = (spec->y == 0) ? 180 : 90;
+                else
+                    active_start = (spec->y == 0) ? 270 : 0;
+                active_end = active_start + 90;
+            }
+            active_panel_found = true;
+            break;
+        }
+    }
+
+    lv_draw_arc_dsc_init(&arc_dsc);
+    arc_dsc.color = lv_color_hex(MP_OUTLINE_COLOR);
+    arc_dsc.width = 2;
+    arc_dsc.opa = LV_OPA_COVER;
+
+    if (!another_player_selected) {
+        if (!active_panel_found) {
+            lv_draw_arc(draw_ctx, &arc_dsc, &center, 50, 0, 360);
+        } else {
+            if (active_end < active_start) active_end += 360;
+            if (active_end <= 360) {
+                if (active_end < 360)
+                    lv_draw_arc(draw_ctx, &arc_dsc, &center, 50, active_end, 360);
+                if (active_start > 0)
+                    lv_draw_arc(draw_ctx, &arc_dsc, &center, 50, 0, active_start);
+            } else {
+                lv_draw_arc(draw_ctx, &arc_dsc, &center, 50,
+                            active_end - 360, active_start);
+            }
+        }
+    }
+
+    arc_dsc.color = lv_color_white();
+    arc_dsc.width = 6;
+    lv_draw_line_dsc_init(&line_dsc);
+    line_dsc.color = lv_color_white();
+    line_dsc.width = 6;
+    int highlight_radius = (planechase_active && selection_count() > 0) ? 50 : 48;
+    for (i = 0; i < mp_state.layout->panel_count; i++) {
+        const mp_panel_spec_t *spec = &mp_state.layout->panels[i];
+        lv_point_t inner_start;
+        lv_point_t outer_start;
+        lv_point_t inner_end;
+        lv_point_t outer_end;
+        int highlight_start;
+        int highlight_end;
+        int connector_radius;
+        int arc_start;
+        int arc_end;
+
+        if (!is_player_selected(spec->player_index)) continue;
+        if (spec_is_wedge(spec)) {
+            highlight_start = spec->wedge_start;
+            highlight_end = spec->wedge_end;
+        } else if (mp_state.layout->panel_count == 2) {
+            highlight_start = (spec->y == 0) ? 180 : 0;
+            highlight_end = highlight_start + 180;
+        } else if (mp_state.layout->panel_count == 4) {
+            if (spec->x == 0)
+                highlight_start = (spec->y == 0) ? 180 : 90;
+            else
+                highlight_start = (spec->y == 0) ? 270 : 0;
+            highlight_end = highlight_start + 90;
+        } else {
+            continue;
+        }
+
+        connector_radius = highlight_radius - 1;
+        arc_start = (highlight_start + 357) % 360;
+        arc_end = (highlight_end + 3) % 360;
+        inner_start.x = WEDGE_CX + wedge_polar(
+            lv_trigo_cos((int16_t)(highlight_start % 360)), connector_radius);
+        inner_start.y = WEDGE_CY + wedge_polar(
+            lv_trigo_sin((int16_t)(highlight_start % 360)), connector_radius);
+        outer_start.x = WEDGE_CX + wedge_polar(
+            lv_trigo_cos((int16_t)(highlight_start % 360)), 180);
+        outer_start.y = WEDGE_CY + wedge_polar(
+            lv_trigo_sin((int16_t)(highlight_start % 360)), 180);
+        inner_end.x = WEDGE_CX + wedge_polar(
+            lv_trigo_cos((int16_t)(highlight_end % 360)), connector_radius);
+        inner_end.y = WEDGE_CY + wedge_polar(
+            lv_trigo_sin((int16_t)(highlight_end % 360)), connector_radius);
+        outer_end.x = WEDGE_CX + wedge_polar(
+            lv_trigo_cos((int16_t)(highlight_end % 360)), 180);
+        outer_end.y = WEDGE_CY + wedge_polar(
+            lv_trigo_sin((int16_t)(highlight_end % 360)), 180);
+        lv_draw_line(draw_ctx, &line_dsc, &inner_start, &outer_start);
+        lv_draw_line(draw_ctx, &line_dsc, &inner_end, &outer_end);
+        lv_draw_arc(draw_ctx, &arc_dsc, &center, highlight_radius,
+                    arc_start, arc_end);
     }
 }
 
@@ -1107,6 +1310,8 @@ void rebuild_multiplayer_layout(int track)
 
     if (layout->panel_count > 0 && spec_is_wedge(&layout->panels[0])) {
         wedge_compute_geometry(layout->panels, layout->panel_count);
+    } else {
+        wedge_sep_count = 0;
     }
 
     for (i = 0; i < layout->panel_count; i++) {
@@ -1145,7 +1350,7 @@ void rebuild_multiplayer_layout(int track)
         name_lbl = lv_label_create(panel);
         lv_label_set_text(name_lbl, player_names[p]);
         lv_obj_set_style_text_color(name_lbl, lv_color_white(), 0);
-        lv_obj_set_style_text_font(name_lbl, &lv_font_beleren_bold_22, 0);
+        lv_obj_set_style_text_font(name_lbl, &lv_font_beleren_bold_26, 0);
         lv_obj_align(name_lbl, LV_ALIGN_CENTER, 0, 30);
         mp_state.name_labels[i] = name_lbl;
 
@@ -1171,12 +1376,12 @@ void rebuild_multiplayer_layout(int track)
                                 (void *)(intptr_t)(p * MAX_GAME_PLAYERS + source + 1));
             mp_state.damage_buttons[i][row] = button;
             mp_state.damage_values[i][row] = lv_label_create(button);
-            lv_obj_set_style_text_font(mp_state.damage_values[i][row], &lv_font_beleren_bold_14, 0);
+            lv_obj_set_style_text_font(mp_state.damage_values[i][row], &lv_font_beleren_bold_18, 0);
             lv_obj_center(mp_state.damage_values[i][row]);
             row++;
         }
         mp_state.damage_overflow[i] = lv_label_create(mp_state.damage_groups[i]);
-        lv_obj_set_style_text_font(mp_state.damage_overflow[i], &lv_font_beleren_bold_14, 0);
+        lv_obj_set_style_text_font(mp_state.damage_overflow[i], &lv_font_beleren_bold_18, 0);
         lv_obj_set_x(mp_state.damage_overflow[i], 10);
         lv_obj_add_flag(mp_state.damage_overflow[i], LV_OBJ_FLAG_HIDDEN);
 
@@ -1195,14 +1400,13 @@ void rebuild_multiplayer_layout(int track)
         create_plane_cost_row(panel, &mp_state.plane_cost_rows[p], &mp_state.plane_cost_values[p]);
     }
 
-    if (layout->panel_count > 0 && spec_is_wedge(&layout->panels[0])) {
-        /* Transparent overlay that draws the separator lines between
-           slices (LV_USE_LINE is disabled, so draw them directly). */
-        lv_obj_t *sep = make_plain_box(screen_multiplayer, 360, 360);
-        lv_obj_set_pos(sep, 0, 0);
-        lv_obj_add_event_cb(sep, event_wedge_separators, LV_EVENT_DRAW_MAIN, NULL);
-    }
+    /* Transparent overlay for slice separators and the selected panel's
+       curved outer edge. */
+    mp_state.selection_outline = make_plain_box(screen_multiplayer, 360, 360);
+    lv_obj_set_pos(mp_state.selection_outline, 0, 0);
+    lv_obj_add_event_cb(mp_state.selection_outline, event_selection_outline, LV_EVENT_DRAW_MAIN, NULL);
 
+    // Timer circle in the center of the screen
     mp_state.timer_circle = lv_btn_create(screen_multiplayer);
     lv_obj_remove_style_all(mp_state.timer_circle);
     lv_obj_set_size(mp_state.timer_circle, 96, 96);
@@ -1213,25 +1417,20 @@ void rebuild_multiplayer_layout(int track)
     lv_obj_set_style_border_width(mp_state.timer_circle, 2, 0);
     lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
     lv_obj_set_style_pad_all(mp_state.timer_circle, 4, 0);
-    lv_obj_add_event_cb(mp_state.timer_circle, event_turn_tap, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mp_state.timer_circle, event_center_circle_tap, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(screen_multiplayer, event_timer_outline, LV_EVENT_DRAW_POST, NULL);
 
+    // Turn and elapsed time labels inside the timer circle
     mp_state.timer_turn_label = lv_label_create(mp_state.timer_circle);
     lv_obj_set_style_text_color(mp_state.timer_turn_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(mp_state.timer_turn_label, &lv_font_beleren_bold_16, 0);
-    lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 6, -12);
+    lv_obj_set_style_text_font(mp_state.timer_turn_label, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_align(mp_state.timer_turn_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, -12);
 
-    mp_state.timer_player_dot = lv_obj_create(mp_state.timer_circle);
-    lv_obj_remove_style_all(mp_state.timer_player_dot);
-    lv_obj_set_size(mp_state.timer_player_dot, 10, 10);
-    lv_obj_set_style_radius(mp_state.timer_player_dot, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(mp_state.timer_player_dot, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(mp_state.timer_player_dot, 1, 0);
-    lv_obj_set_style_border_color(mp_state.timer_player_dot, lv_color_white(), 0);
-    lv_obj_align(mp_state.timer_player_dot, LV_ALIGN_CENTER, -28, -12);
-
+    // Elapsed time label inside the timer circle
     mp_state.timer_elapsed_label = lv_label_create(mp_state.timer_circle);
     lv_obj_set_style_text_color(mp_state.timer_elapsed_label, lv_color_hex(0xB8B8B8), 0);
-    lv_obj_set_style_text_font(mp_state.timer_elapsed_label, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(mp_state.timer_elapsed_label, &lv_font_beleren_bold_26, 0);
     lv_obj_align(mp_state.timer_elapsed_label, LV_ALIGN_CENTER, 0, 13);
     refresh_multiplayer_timer_ui();
 

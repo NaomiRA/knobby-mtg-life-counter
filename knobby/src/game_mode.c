@@ -213,19 +213,19 @@ void build_custom_life_screen(void)
     title = lv_label_create(screen_custom_life);
     lv_label_set_text(title, "Life Total");
     lv_obj_set_style_text_color(title, lv_color_white(), 0);
-    lv_obj_set_style_text_font(title, &lv_font_beleren_bold_22, 0);
+    lv_obj_set_style_text_font(title, &lv_font_beleren_bold_26, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 60);
 
     label_custom_life_value = lv_label_create(screen_custom_life);
     lv_label_set_text(label_custom_life_value, "40");
     lv_obj_set_style_text_color(label_custom_life_value, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_custom_life_value, &lv_font_beleren_bold_32, 0);
+    lv_obj_set_style_text_font(label_custom_life_value, &lv_font_beleren_bold_36, 0);
     lv_obj_align(label_custom_life_value, LV_ALIGN_CENTER, 0, -10);
 
     hint = lv_label_create(screen_custom_life);
     lv_label_set_text(hint, "Turn knob to adjust");
     lv_obj_set_style_text_color(hint, lv_color_hex(0x6A6A6A), 0);
-    lv_obj_set_style_text_font(hint, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(hint, &lv_font_beleren_bold_18, 0);
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 24);
 }
 

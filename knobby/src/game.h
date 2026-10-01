@@ -87,7 +87,6 @@ extern bool player_has_override[MAX_DISPLAY_PLAYERS];
 
 lv_color_t get_player_color_vib(int index, int vibrancy);
 lv_color_t get_player_base_color(int index);
-lv_color_t get_player_active_color(int index);
 lv_color_t get_player_text_color(int index);
 lv_color_t get_player_preview_color(int index, int delta);
 lv_color_t get_custom_color_vib(int index, int vibrancy);

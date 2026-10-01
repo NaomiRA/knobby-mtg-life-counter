@@ -118,15 +118,14 @@ static inline int get_arc_display_value(int value, int max_life)
 
 #define LIFE_VIB_DIM  0
 #define LIFE_VIB_MID  1
-#define LIFE_VIB_VIV  2
-#define LIFE_VIB_COUNT 3
+#define LIFE_VIB_COUNT 2
 
 static const uint32_t life_color_table[LIFE_TIER_COUNT][LIFE_VIB_COUNT] = {
-    /* dim        mid        vivid */
-    {0x4D1C1C, 0xF44336, 0xFF0000},  /* red    */
-    {0x4D4D00, 0xFFEB3B, 0xFFFF00},  /* yellow */
-    {0x024D3A, 0x06D6A0, 0x66FFD9},  /* green  */
-    {0x2E004D, 0x7B1FA2, 0xAA00FF},  /* purple */
+    /* dim        mid   */
+    {0x4D1C1C, 0xF44336},  /* red    */
+    {0x4D4D00, 0xFFEB3B},  /* yellow */
+    {0x024D3A, 0x06D6A0},  /* green  */
+    {0x2E004D, 0x7B1FA2},  /* purple */
 };
 
 static inline int get_life_tier(int value, int max_life)

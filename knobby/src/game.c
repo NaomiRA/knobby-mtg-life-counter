@@ -256,45 +256,41 @@ void manual_uneliminate_player(int player)
 
 // ---------- player colors ----------
 static const uint32_t player_color_table[MAX_GAME_PLAYERS][LIFE_VIB_COUNT] = {
-    /*  dim        mid        vivid  */
-    {0x024D3A, 0x06D6A0, 0x66FFD9},  /* P1 green  (bottom-left) */
-    {0x2A0A4D, 0x7B1FE0, 0x9C4DFF},  /* P2 purple (top-left)    */
-    {0x0A3A4D, 0x29B6F6, 0x4FC3F7},  /* P3 blue   (top-right)   */
-    {0x4D4400, 0xFFD600, 0xFFEA61},  /* P4 yellow (bottom-right) */
-    {0x4D1C1C, 0xF44336, 0xFF5252},  /* P5 red    */
-    {0x4D3300, 0xFF9800, 0xFFB74D},  /* P6 orange */
-    {0x004D4D, 0x00BCD4, 0x4DD0E1},  /* P7 cyan   */
-    {0x3D0A4D, 0xE040FB, 0xEA80FC},  /* P8 pink   */
+    /*  dim        mid  */
+    {0x708073, 0xb9d4bd},  /* P1 pale green  (bottom-left) */
+    {0x8c5f4e, 0xea9e82},  /* P2 orange (top-left)    */
+    {0x6b7c8c, 0xb2cee9},  /* P3 pale blue   (top-right)   */
+    {0x93896e, 0xf5e4b7},  /* P4 yellow (bottom-right) */
 };
 
 // ---------- custom color palette (18 colors) ----------
 static const uint32_t custom_color_table[CUSTOM_COLOR_COUNT][LIFE_VIB_COUNT] = {
-    /*  dim        mid        vivid  */
-    {0x024D3A, 0x06D6A0, 0x66FFD9},  /*  0 Green (logo) */
-    {0x2A0A4D, 0x7B1FE0, 0x9C4DFF},  /*  1 Purple */
-    {0x0A3A4D, 0x29B6F6, 0x4FC3F7},  /*  2 Blue   */
-    {0x4D4400, 0xFFD600, 0xFFEA61},  /*  3 Yellow */
-    {0x4D1C1C, 0xF44336, 0xFF5252},  /*  4 Red    */
-    {0x4D3300, 0xFF9800, 0xFFB74D},  /*  5 Orange */
-    {0x004D4D, 0x00BCD4, 0x4DD0E1},  /*  6 Cyan   */
-    {0x3D0A4D, 0xE040FB, 0xEA80FC},  /*  7 Pink   */
-    {0x2D4D00, 0x8BC34A, 0xAED581},  /*  8 Lime   */
-    {0x0A0A4D, 0x3F51B5, 0x7986CB},  /*  9 Indigo */
-    {0x4D0A2A, 0xE91E63, 0xF06292},  /* 10 Rose   */
-    {0x333333, 0xAAAAAA, 0xFFFFFF},  /* 11 White  */
-    {0x00332E, 0x009688, 0x4DB6AC},  /* 12 Teal   */
-    {0x4D3800, 0xFFC107, 0xFFD54F},  /* 13 Amber  */
-    {0x2E1F16, 0x795548, 0xA1887F},  /* 14 Brown  */
-    {0x1E2D33, 0x607D8B, 0x90A4AE},  /* 15 Gray   */
-    {0x1A3D1A, 0xA5D6A7, 0x4CAF50},  /* 16 Sage   */
-    {0x0A0A0A, 0x303030, 0x505050},  /* 17 Black  */
+    /*  dim        mid  */
+    {0x708073, 0xb9d4bd},  /*  0 Pale Green (logo) */
+    {0x54416d, 0x8c6db6},  /*  1 Purple */
+    {0x6b7c8c, 0xb2cee9},  /*  2 Pale Blue   */
+    {0x93896e, 0xf5e4b7},  /*  3 Yellow */
+    {0x7f1319, 0xd31f2a},  /*  4 Red    */
+    {0x8c5f4e, 0xea9e82},  /*  5 Orange */
+    {0x004526, 0x00733f},  /*  6 Forest Green   */
+    {0x884958, 0xe27992},  /*  7 Salmon   */
+    {0x6e9489, 0xb7f6e4},  /*  8 Teal   */
+    {0x5f2b7d, 0x9e47d0},  /*  9 Violet */
+    {0x8e6d8e, 0xecb6ec},  /* 10 Rose   */
+    {0x959692, 0xf9faf4},  /* 11 White  */
+    {0x083e67, 0x0d68ab},  /* 12 Island Blue   */
+    {0x99742e, 0xffc24d},  /* 13 Amber  */
+    {0x665540, 0xaa8d6a},  /* 14 Brown  */
+    {0x625e5d, 0xa49c9b},  /* 15 Gray   */
+    {0x1A3D1A, 0xA5D6A7},  /* 16 Sage   */
+    {0x0A0A0A, 0x303030},  /* 17 Black  */
 };
 
 static const char *custom_color_names[CUSTOM_COLOR_COUNT] = {
-    "Green", "Purple", "Blue", "Yellow",
-    "Red", "Orange", "Cyan", "Pink",
-    "Lime", "Indigo", "Rose", "White",
-    "Teal", "Amber", "Brown", "Gray",
+    "Pale Green", "Purple", "Pale Blue", "Yellow",
+    "Red", "Orange", "Forest Green", "Salmon",
+    "Teal", "Violet", "Rose", "White",
+    "Island Blue", "Amber", "Brown", "Gray",
     "Sage", "Black",
 };
 
@@ -313,11 +309,6 @@ lv_color_t get_player_color_vib(int index, int vibrancy)
 lv_color_t get_player_base_color(int index)
 {
     return get_player_color_vib(index, LIFE_VIB_MID);
-}
-
-lv_color_t get_player_active_color(int index)
-{
-    return get_player_color_vib(index, LIFE_VIB_VIV);
 }
 
 lv_color_t get_player_text_color(int index)

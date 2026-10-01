@@ -105,7 +105,7 @@ static void init_plane_text_font(void)
 
     plane_text_imgfont = lv_imgfont_create(17, chaos_imgfont_path);
     if (plane_text_imgfont == NULL) return;
-    plane_text_font = lv_font_mplantin_16;
+    plane_text_font = lv_font_mplantin_20;
     plane_text_font.fallback = plane_text_imgfont;
 }
 
@@ -213,7 +213,7 @@ void create_plane_cost_row(lv_obj_t *parent, lv_obj_t **row, lv_obj_t **value)
     lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 0);
 
     *value = lv_label_create(*row);
-    lv_obj_set_style_text_font(*value, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(*value, &lv_font_beleren_bold_18, 0);
     lv_obj_align(*value, LV_ALIGN_BOTTOM_MID, 0, 0);
 }
 
@@ -361,6 +361,7 @@ void build_planechase_screen(void)
     lv_obj_center(image_plane_background);
     lv_obj_set_style_img_opa(image_plane_background, LV_OPA_50, 0);
 
+    // Close button
     button = lv_btn_create(screen_planechase);
     lv_obj_set_size(button, 55, 36);
     lv_obj_align(button, LV_ALIGN_TOP_MID, 0, 6);
@@ -369,51 +370,58 @@ void build_planechase_screen(void)
     lv_label_set_text(label, "Close");
     lv_obj_center(label);
 
+    // Current player viewing plane
     label_plane_viewer = lv_label_create(screen_planechase);
     lv_obj_set_size(label_plane_viewer, 240, 18);
     lv_label_set_long_mode(label_plane_viewer, LV_LABEL_LONG_DOT);
     lv_obj_set_style_text_align(label_plane_viewer, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(label_plane_viewer, lv_color_hex(0xA8D8BE), 0);
-    lv_obj_set_style_text_font(label_plane_viewer, &lv_font_beleren_bold_14, 0);
+    lv_obj_set_style_text_font(label_plane_viewer, &lv_font_beleren_bold_18, 0);
     lv_obj_align(label_plane_viewer, LV_ALIGN_TOP_MID, 0, 50);
 
+    // Plane name
     label_plane_name = lv_label_create(screen_planechase);
     lv_obj_set_width(label_plane_name, 260);
     lv_obj_set_style_text_align(label_plane_name, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(label_plane_name, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_plane_name, &lv_font_beleren_bold_16, 0);
-    lv_obj_align(label_plane_name, LV_ALIGN_TOP_MID, 0, 70);
+    lv_obj_set_style_text_font(label_plane_name, &lv_font_beleren_bold_20, 0);
+    lv_obj_align(label_plane_name, LV_ALIGN_TOP_MID, 0, 73);
 
+    // Plane type
     label_plane_type = lv_label_create(screen_planechase);
     lv_obj_set_width(label_plane_type, 270);
     lv_obj_set_style_text_align(label_plane_type, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(label_plane_type, lv_color_hex(0xA8D8BE), 0);
-    lv_obj_set_style_text_font(label_plane_type, &lv_font_beleren_bold_14, 0);
-    lv_obj_align(label_plane_type, LV_ALIGN_TOP_MID, 0, 98);
+    lv_obj_set_style_text_font(label_plane_type, &lv_font_beleren_bold_18, 0);
+    lv_obj_align(label_plane_type, LV_ALIGN_TOP_MID, 0, 94);
 
+    // Plane description - scrollable text area
     text_area = lv_obj_create(screen_planechase);
     lv_obj_set_size(text_area, 270, 143);
-    lv_obj_align(text_area, LV_ALIGN_TOP_MID, 0, 116);
+    lv_obj_align(text_area, LV_ALIGN_TOP_MID, 0, 113);
     lv_obj_set_style_bg_opa(text_area, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(text_area, 0, 0);
     lv_obj_set_style_pad_all(text_area, 4, 0);
     lv_obj_set_scroll_dir(text_area, LV_DIR_VER);
 
+
     label_plane_text = lv_label_create(text_area);
     lv_obj_set_width(label_plane_text, 252);
     lv_obj_set_style_text_color(label_plane_text, lv_color_white(), 0);
     lv_obj_set_style_text_font(label_plane_text,
-                               plane_text_imgfont != NULL ? &plane_text_font : &lv_font_mplantin_16, 0);
-
+                               plane_text_imgfont != NULL ? &plane_text_font : &lv_font_mplantin_20, 0);
+    
+    // Dice roll result
     label_plane_result = lv_label_create(screen_planechase);
     lv_label_set_text(label_plane_result, "");
-    lv_obj_set_style_text_font(label_plane_result, &lv_font_beleren_bold_16, 0);
-    lv_obj_align(label_plane_result, LV_ALIGN_TOP_MID, 0, 266);
+    lv_obj_set_style_text_font(label_plane_result, &lv_font_beleren_bold_20, 0);
+    lv_obj_align(label_plane_result, LV_ALIGN_TOP_MID, 0, 262);
     plane_result_timer = lv_timer_create(fade_plane_result, 5000, NULL);
     lv_timer_pause(plane_result_timer);
 
+    // Roll planar die button
     button = lv_btn_create(screen_planechase);
-    lv_obj_set_size(button, 85, 40);
+    lv_obj_set_size(button, 90, 42);
     lv_obj_align(button, LV_ALIGN_BOTTOM_LEFT, 85, -30);
     lv_obj_add_event_cb(button, event_roll_planar_die, LV_EVENT_CLICKED, NULL);
     label_plane_roll = lv_label_create(button);
@@ -421,16 +429,18 @@ void build_planechase_screen(void)
     lv_obj_set_style_text_align(label_plane_roll, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(label_plane_roll);
 
+    // Planeswalk button
     button = lv_btn_create(screen_planechase);
-    lv_obj_set_size(button, 85, 40);
+    lv_obj_set_size(button, 90, 42);
     lv_obj_align(button, LV_ALIGN_BOTTOM_RIGHT, -85, -30);
     lv_obj_add_event_cb(button, event_plane_next, LV_EVENT_CLICKED, NULL);
+    // lv_obj_set_text_align(button, LV_TEXT_ALIGN_CENTER);
     label = lv_label_create(button);
     lv_label_set_text(label, "Planeswalk");
     lv_obj_center(label);
-    lv_obj_set_text_align(label, LV_TEXT_ALIGN_CENTER);
 
+    // Plane count label (## / 40)
     label_plane_count = lv_label_create(screen_planechase);
     lv_obj_set_style_text_color(label_plane_count, lv_color_hex(0xA8D8BE), 0);
-    lv_obj_align(label_plane_count, LV_ALIGN_BOTTOM_MID, 0, -12);
+    lv_obj_align(label_plane_count, LV_ALIGN_BOTTOM_MID, 0, -10);
 }
