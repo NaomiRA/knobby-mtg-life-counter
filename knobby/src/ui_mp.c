@@ -833,6 +833,11 @@ void refresh_multiplayer_timer_ui(void)
 
     if (mp_state.timer_circle == NULL) return;
 
+    if (nvs_get_timer_mode() == TIMER_MODE_OFF && !turn_ui_visible) {
+        lv_obj_add_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
     if (turn_number <= 0) {
         lv_label_set_text(mp_state.timer_turn_label, "Quick\nStart");
         lv_obj_set_style_text_align(mp_state.timer_turn_label, LV_TEXT_ALIGN_CENTER, 0);
@@ -856,17 +861,6 @@ void refresh_multiplayer_timer_ui(void)
         return;
     }
 
-    lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, -12);
-    lv_obj_clear_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
-
-    if (nvs_get_timer_mode() == TIMER_MODE_OFF) {
-        lv_label_set_text(mp_state.timer_turn_label, "Timer");
-        lv_label_set_text(mp_state.timer_elapsed_label, "OFF");
-        lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
-        lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
-        return;
-    }
-
     if (mp_state.layout != NULL) {
         for (i = 0; i < mp_state.layout->panel_count; i++) {
             if (mp_state.layout->panels[i].player_index == turn_player_index) {
@@ -876,6 +870,20 @@ void refresh_multiplayer_timer_ui(void)
         }
     }
 
+    if (nvs_get_timer_mode() == TIMER_MODE_OFF) {
+        snprintf(turn_buf, sizeof(turn_buf), "Turn %d", turn_number);
+        lv_label_set_text(mp_state.timer_turn_label, turn_buf);
+        lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_add_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_border_color(mp_state.timer_circle,
+            get_effective_player_color(turn_player_index, color_index, LIFE_VIB_MID), 0);
+        lv_obj_set_style_border_width(mp_state.timer_circle, 6, 0);
+        lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
+    lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, -12);
+    lv_obj_clear_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_border_color(mp_state.timer_circle,
         get_effective_player_color(turn_player_index, color_index, LIFE_VIB_MID), 0);
     lv_obj_set_style_border_width(mp_state.timer_circle, 6, 0);
@@ -1170,21 +1178,11 @@ static void event_timer_outline(lv_event_t *e)
     int active_end = 0;
     int i;
     bool active_panel_found = false;
-    bool another_player_selected = false;
 
     if (mp_state.layout == NULL || mp_state.timer_circle == NULL ||
         lv_obj_has_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN)) return;
 
-    for (i = 0; i < mp_state.layout->panel_count; i++) {
-        int player = mp_state.layout->panels[i].player_index;
-        if (player != turn_player_index && is_player_selected(player)) {
-            another_player_selected = true;
-            break;
-        }
-    }
-
-    if (!(planechase_active &&
-          (selection_count() > 0 || nvs_get_timer_mode() == TIMER_MODE_OFF))) {
+    if (!(planechase_active && selection_count() > 0)) {
         for (i = 0; i < mp_state.layout->panel_count; i++) {
             const mp_panel_spec_t *spec = &mp_state.layout->panels[i];
 
@@ -1212,8 +1210,8 @@ static void event_timer_outline(lv_event_t *e)
     arc_dsc.width = 2;
     arc_dsc.opa = LV_OPA_COVER;
 
-    if (!another_player_selected) {
-        if (!active_panel_found) {
+    if (selection_count() == 0) {
+        if (turn_number <= 0 || !active_panel_found) {
             lv_draw_arc(draw_ctx, &arc_dsc, &center, 50, 0, 360);
         } else {
             if (active_end < active_start) active_end += 360;

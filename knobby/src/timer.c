@@ -164,8 +164,6 @@ void event_turn_tap(lv_event_t *e)
         return;
     }
 
-    if (nvs_get_timer_mode() == TIMER_MODE_OFF && !planechase_active) return;
-
     now = lv_tick_get();
     if (turn_number <= 0) {
         turn_number = 1;
