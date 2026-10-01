@@ -9,7 +9,7 @@
 #include "storage.h"
 #include "hw.h"
 
-extern void reset_all_values(void);
+extern void quick_start_game(void);
 
 // ---------- screens ----------
 lv_obj_t *screen_1p = NULL;
@@ -383,7 +383,7 @@ static void event_start_quick_game(lv_event_t *e)
 {
     (void)e;
     if (turn_number <= 0 && !player_selection_animation_active())
-        reset_all_values();
+        quick_start_game();
 }
 
 static void event_select_enemy(lv_event_t *e)

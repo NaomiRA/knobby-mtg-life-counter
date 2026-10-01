@@ -9,6 +9,14 @@
 #include "planechase.h"
 
 extern void reset_all_values(void);
+extern void quick_start_game(void);
+
+static bool game_mode_starting = false;
+
+void multiplayer_set_game_mode_starting(bool starting)
+{
+    game_mode_starting = starting;
+}
 
 static lv_obj_t *add_low_battery_icon(lv_obj_t *parent)
 {
@@ -833,19 +841,17 @@ void refresh_multiplayer_timer_ui(void)
 
     if (mp_state.timer_circle == NULL) return;
 
-    if (nvs_get_timer_mode() == TIMER_MODE_OFF && !turn_ui_visible) {
-        lv_obj_add_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
-        return;
-    }
-
     if (turn_number <= 0) {
-        lv_label_set_text(mp_state.timer_turn_label, "Quick\nStart");
+        bool show_starting = game_mode_starting && player_selection_animation_active();
+        lv_label_set_text(mp_state.timer_turn_label,
+            show_starting ? "Starting\nGame" : "Quick\nStart");
         lv_obj_set_style_text_align(mp_state.timer_turn_label, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_font(mp_state.timer_turn_label, &lv_font_beleren_bold_20, 0);
+        lv_obj_set_style_text_font(mp_state.timer_turn_label,
+            show_starting ? &lv_font_beleren_bold_20 : &lv_font_beleren_bold_18, 0);
         lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, 0);
         lv_obj_add_flag(mp_state.timer_elapsed_label, LV_OBJ_FLAG_HIDDEN);
         lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
-        lv_obj_set_style_border_width(mp_state.timer_circle, 2, 0);
+        lv_obj_set_style_border_width(mp_state.timer_circle, 6, 0);
         lv_obj_clear_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN);
         return;
     }
@@ -897,8 +903,9 @@ void refresh_multiplayer_timer_ui(void)
 /* ---------- events ---------- */
 static void event_center_circle_tap(lv_event_t *e)
 {
+    (void)e;
     if (turn_number <= 0) {
-        if (!player_selection_animation_active()) reset_all_values();
+        if (!player_selection_animation_active()) quick_start_game();
         return;
     }
 
@@ -1312,6 +1319,7 @@ void rebuild_multiplayer_layout(int track)
         wedge_sep_count = 0;
     }
 
+    // Create and configure panels for each player according to the layout specification
     for (i = 0; i < layout->panel_count; i++) {
         const mp_panel_spec_t *spec = &layout->panels[i];
         int p = spec->player_index;

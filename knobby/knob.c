@@ -366,8 +366,9 @@ static void handle_back_navigation(lv_obj_t *screen)
 }
 
 // ---------- reset ----------
-void reset_all_values(void)
+static void reset_all_values_internal(bool game_mode_start, bool animate_selection)
 {
+    multiplayer_set_game_mode_starting(game_mode_start);
     mp_commander_damage_cancel();
     knob_life_reset();
 
@@ -387,7 +388,35 @@ void reset_all_values(void)
     refresh_counter_edit_ui();
     mana_clear_all();
 
-    start_player_selection_animation();
+    if (animate_selection) {
+        start_player_selection_animation();
+        if (game_mode_start) refresh_multiplayer_timer_ui();
+    } else {
+        turn_timer_start_fresh_for_player(0);
+    }
+}
+
+void reset_all_values(void)
+{
+    reset_all_values_internal(false, true);
+}
+
+void reset_all_values_for_game_mode(void)
+{
+    reset_all_values_internal(true, true);
+}
+
+void quick_start_game(void)
+{
+    nvs_set_num_players(DEFAULT_NUM_PLAYERS);
+    nvs_set_timer_mode(TIMER_MODE_TURN);
+    nvs_set_life_total(DEFAULT_LIFE_TOTAL);
+    settings_save();
+    planechase_set_active(false, DEFAULT_NUM_PLAYERS);
+    rebuild_multiplayer_layout(DEFAULT_NUM_PLAYERS);
+    reset_all_values_internal(false, true);
+    back_to_main();
+    lv_indev_wait_release(lv_indev_get_act());
 }
 
 
