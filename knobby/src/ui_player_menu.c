@@ -67,7 +67,7 @@ void refresh_counter_edit_ui(void) {
   }
 
   if (label_counter_edit_title != NULL) {
-    snprintf(title_buf, sizeof(title_buf), "%s\n%s", player_names[menu_player],
+      snprintf(title_buf, sizeof(title_buf), "%s\n%s", player_names[menu_player],
              definition->display_name);
     lv_label_set_text(label_counter_edit_title, title_buf);
   }
@@ -99,6 +99,15 @@ void refresh_counter_edit_ui(void) {
 // ---------- navigation ----------
 void open_player_menu(int player_index) {
   menu_player = player_index;
+  lv_obj_t *cmd_btn = lv_obj_get_child(screen_player_menu, 1);
+  bool cmd_off = nvs_get_two_headed_giant() &&
+                 nvs_get_two_hg_cmd_mode() == TWO_HG_CMD_OFF;
+  lv_label_set_text(lv_obj_get_child(cmd_btn, 0),
+                    cmd_off ? "Commander\nDamage Off" : "Commander\nDamage");
+  if (cmd_off)
+    lv_obj_add_state(cmd_btn, LV_STATE_DISABLED);
+  else
+    lv_obj_clear_state(cmd_btn, LV_STATE_DISABLED);
   load_screen_if_needed(screen_player_menu);
 }
 
@@ -108,7 +117,10 @@ static void open_all_damage_screen(void) {
   all_damage_value = 0;
   if (cb_include_myself != NULL) {
     char cb_buf[64];
-    snprintf(cb_buf, sizeof(cb_buf), "Include myself (%s)", player_names[menu_player]);
+    if (nvs_get_two_headed_giant())
+      snprintf(cb_buf, sizeof(cb_buf), "Include my team");
+    else
+      snprintf(cb_buf, sizeof(cb_buf), "Include myself (%s)", player_names[menu_player]);
     lv_checkbox_set_text(cb_include_myself, cb_buf);
     lv_obj_clear_state(cb_include_myself, LV_STATE_CHECKED);
   }
@@ -136,6 +148,8 @@ static void event_menu_rename_all(lv_event_t *e) {
 
 static void event_menu_cmd_damage(lv_event_t *e) {
   (void)e;
+  if (nvs_get_two_headed_giant() && nvs_get_two_hg_cmd_mode() == TWO_HG_CMD_OFF)
+    return;
   prepare_cmd_damage_for_player(menu_player);
   open_select_screen();
 }
@@ -189,6 +203,7 @@ static void event_counter_experience(lv_event_t *e) {
 
 static void event_all_damage_apply(lv_event_t *e) {
   int i;
+  bool two_hg = nvs_get_two_headed_giant();
   bool include_myself = false;
 
   if (cb_include_myself != NULL) {
@@ -197,7 +212,12 @@ static void event_all_damage_apply(lv_event_t *e) {
 
   (void)e;
   for (i = 0; i < nvs_get_players_to_track(); i++) {
-    if (i == menu_player && !include_myself) {
+    if (two_hg) {
+      bool current_team_one = (i == 0);
+      bool menu_team_one = (menu_player == 0 || menu_player == 3);
+      if (i >= 2 || (!include_myself && current_team_one == menu_team_one))
+        continue;
+    } else if (i == menu_player && !include_myself) {
       continue;
     }
     apply_life_delta(i, -all_damage_value);
@@ -225,6 +245,7 @@ static lv_obj_t *color_picker_swatch = NULL;
 static lv_obj_t *color_picker_name_label = NULL;
 static lv_obj_t *color_picker_title_label = NULL;
 static int color_picker_index = 0;
+static int color_picker_team = -1;
 
 static void event_menu_color(lv_event_t *e) {
   (void)e;
@@ -256,6 +277,7 @@ static void event_color_custom(lv_event_t *e) {
   (void)e;
   if (menu_player < 0 || menu_player >= MAX_DISPLAY_PLAYERS)
     return;
+  color_picker_team = -1;
   color_picker_index = player_color_index[menu_player];
   if (color_picker_title_label != NULL) {
     snprintf(title_buf, sizeof(title_buf), "%s\nColor",
@@ -265,6 +287,25 @@ static void event_color_custom(lv_event_t *e) {
   if (color_picker_swatch != NULL)
     lv_obj_set_style_bg_color(
         color_picker_swatch,
+        get_custom_color_vib(color_picker_index, LIFE_VIB_MID), 0);
+  if (color_picker_name_label != NULL)
+    lv_label_set_text(color_picker_name_label,
+                      get_custom_color_name(color_picker_index));
+  load_screen_if_needed(screen_player_color_picker);
+}
+
+void open_team_color_picker(int team) {
+  char title_buf[24];
+  if (team < 0 || team >= 2 || !nvs_get_two_headed_giant()) return;
+
+  color_picker_team = team;
+  color_picker_index = nvs_get_team_color(team);
+  if (color_picker_title_label != NULL) {
+    snprintf(title_buf, sizeof(title_buf), "Team %d\nColor", team + 1);
+    lv_label_set_text(color_picker_title_label, title_buf);
+  }
+  if (color_picker_swatch != NULL)
+    lv_obj_set_style_bg_color(color_picker_swatch,
         get_custom_color_vib(color_picker_index, LIFE_VIB_MID), 0);
   if (color_picker_name_label != NULL)
     lv_label_set_text(color_picker_name_label,
@@ -289,6 +330,13 @@ void change_player_color(int delta) {
 }
 
 void commit_player_color(void) {
+  if (color_picker_team >= 0 && color_picker_team < 2) {
+    nvs_set_team_color(color_picker_team, color_picker_index);
+    settings_save();
+    color_picker_team = -1;
+    refresh_player_ui();
+    return;
+  }
   if (menu_player < 0 || menu_player >= MAX_DISPLAY_PLAYERS)
     return;
   player_has_override[menu_player] = true;

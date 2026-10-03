@@ -68,6 +68,41 @@ static uint16_t player_version[MAX_DISPLAY_PLAYERS] = {0};
 static uint16_t names_version = 0;
 
 static void clear_player_elimination_action(int player);
+static void net_sync_commit_player(int player);
+
+static int teammate_of(int player)
+{
+    return nvs_get_two_headed_giant() ? (3 - player) : -1;
+}
+
+static bool commander_damage_is_lethal(int source, int target)
+{
+    int teammate = teammate_of(target);
+    if (source == target || source == teammate) return false;
+    if (teammate < 0) return cmd_damage_totals[source][target] >= 21;
+
+    int mode = nvs_get_two_hg_cmd_mode();
+    if (mode == TWO_HG_CMD_OFF) return false;
+    if (mode == TWO_HG_CMD_CUMULATIVE)
+        return cmd_damage_totals[source][target] + cmd_damage_totals[source][teammate] >= 31;
+    return cmd_damage_totals[source][target] >= 21;
+}
+
+static void commit_team_life(int player)
+{
+    int teammate = teammate_of(player);
+    if (teammate >= 0) player_life[teammate] = player_life[player];
+    check_player_elimination(player);
+    net_sync_commit_player(player);
+    if (teammate >= 0) net_sync_commit_player(teammate);
+}
+
+static void commit_team_elimination(int player)
+{
+    net_sync_commit_player(player);
+    int teammate = teammate_of(player);
+    if (teammate >= 0) net_sync_commit_player(teammate);
+}
 
 static void net_sync_commit_player(int player)
 {
@@ -163,48 +198,52 @@ void undo_elimination_action(int player)
     damage_log_remove_last_for(player, action.event_type);
 }
 
-void check_player_elimination(int player)
+static bool player_is_lethal(int player)
 {
-    if (player < 0 || player >= MAX_DISPLAY_PLAYERS) return;
-    bool was_eliminated = player_eliminated[player];
-    bool now_eliminated = false;
-
     /* Elimination is a multiplayer concept: with a single tracked player
        there is no eliminated-menu route in the 1p UI, so eliminating
        player 0 would brick the counter until reset. */
-    if (nvs_get_auto_eliminate() && nvs_get_players_to_track() > 1) {
+    if ((nvs_get_auto_eliminate() || nvs_get_two_headed_giant()) && nvs_get_players_to_track() > 1) {
         if (player_life[player] <= 0) {
-            now_eliminated = true;
+            return true;
         } else {
             for (int i = 0; i < MAX_GAME_PLAYERS; i++) {
-                if (i != player && cmd_damage_totals[i][player] >= 21) {
-                    now_eliminated = true;
-                    break;
+                if (commander_damage_is_lethal(i, player)) {
+                    return true;
                 }
             }
-            if (!now_eliminated && player_counters[player][COUNTER_TYPE_POISON] >= 10) {
-                now_eliminated = true;
-            }
+            if (player_counters[player][COUNTER_TYPE_POISON] >= 10) return true;
         }
     }
 
-    if (player_manually_eliminated[player]) {
-        now_eliminated = true;
-    }
+    return player_manually_eliminated[player];
+}
 
+void check_player_elimination(int player)
+{
+    if (player < 0 || player >= MAX_DISPLAY_PLAYERS) return;
+    int teammate = teammate_of(player);
+    bool now_eliminated = player_is_lethal(player);
+    if (teammate >= 0) now_eliminated |= player_is_lethal(teammate);
+
+    bool was_eliminated = player_eliminated[player];
     player_eliminated[player] = now_eliminated;
-    if (!now_eliminated) {
-        clear_player_elimination_action(player);
-    } else if (player_selected[player]) {
-        /* An eliminated player is no longer a life-change target: drop it
-           from the selection so the knob doesn't preview onto a dead panel
-           that can't be tapped to deselect. */
+    if (!now_eliminated) clear_player_elimination_action(player);
+    else if (player_selected[player]) {
         player_selected[player] = false;
         select_kick_timer();
     }
+    if (was_eliminated != now_eliminated) refresh_player_ui();
 
-    if (was_eliminated != now_eliminated) {
-        refresh_player_ui();
+    if (teammate >= 0) {
+        bool was_eliminated = player_eliminated[teammate];
+        player_eliminated[teammate] = now_eliminated;
+        if (!now_eliminated) clear_player_elimination_action(teammate);
+        else if (player_selected[teammate]) {
+            player_selected[teammate] = false;
+            select_kick_timer();
+        }
+        if (was_eliminated != now_eliminated) refresh_player_ui();
     }
 }
 
@@ -214,25 +253,19 @@ void manual_eliminate_player(int player)
     if (player_eliminated[player]) return;
     /* Same solo-mode exemption as check_player_elimination. */
     if (nvs_get_players_to_track() <= 1) return;
-    player_eliminated[player] = true;
     player_manually_eliminated[player] = true;
     clear_player_elimination_action(player);
-    if (player_selected[player]) {
-        player_selected[player] = false;
-        select_kick_timer();
-    }
-    net_sync_commit_player(player);
+    check_player_elimination(player);
+    commit_team_elimination(player);
     refresh_player_ui();
 }
 
 void manual_uneliminate_player(int player)
 {
-    int i;
+    int i, current;
+    int teammate = teammate_of(player);
     if (player < 0 || player >= MAX_DISPLAY_PLAYERS) return;
     if (!player_eliminated[player]) return;
-    player_eliminated[player] = false;
-    player_manually_eliminated[player] = false;
-    clear_player_elimination_action(player);
     /* A remotely-caused elimination arrives with no local
        elimination_action to undo, so revival must also clear whatever
        condition would instantly re-kill the player — otherwise they
@@ -241,16 +274,34 @@ void manual_uneliminate_player(int player)
        auto-elimination would actually re-fire (same gate as
        check_player_elimination): with it off, life <= 0 or poison >=
        10 are legitimate alive states that must not be rewritten. */
-    if (nvs_get_auto_eliminate() && nvs_get_players_to_track() > 1) {
-        if (player_life[player] < 1) player_life[player] = 1;
-        if (player_counters[player][COUNTER_TYPE_POISON] > 9)
-            player_counters[player][COUNTER_TYPE_POISON] = 9;
-        for (i = 0; i < MAX_GAME_PLAYERS; i++) {
-            if (cmd_damage_totals[i][player] > 20)
-                cmd_damage_totals[i][player] = 20;
+    for (current = 0; current < 1 + (teammate >= 0); current++) {
+        int target = (current == 0) ? player : teammate;
+        player_manually_eliminated[target] = false;
+        clear_player_elimination_action(target);
+        if ((nvs_get_auto_eliminate() || teammate >= 0) && nvs_get_players_to_track() > 1) {
+            if (player_life[target] < 1) player_life[target] = 1;
+            if (player_counters[target][COUNTER_TYPE_POISON] > 9)
+                player_counters[target][COUNTER_TYPE_POISON] = 9;
+            if (teammate < 0 || nvs_get_two_hg_cmd_mode() == TWO_HG_CMD_INDIVIDUAL) {
+                for (i = 0; i < MAX_GAME_PLAYERS; i++) {
+                    if (cmd_damage_totals[i][target] > 20)
+                        cmd_damage_totals[i][target] = 20;
+                }
+            }
         }
     }
-    net_sync_commit_player(player);
+    if (teammate >= 0 && nvs_get_two_hg_cmd_mode() == TWO_HG_CMD_CUMULATIVE) {
+        for (i = 0; i < MAX_GAME_PLAYERS; i++) {
+            if (i == player || i == teammate) continue;
+            if (cmd_damage_totals[i][player] > 30)
+                cmd_damage_totals[i][player] = 30;
+            if (cmd_damage_totals[i][teammate] > 30 - cmd_damage_totals[i][player])
+                cmd_damage_totals[i][teammate] = 30 - cmd_damage_totals[i][player];
+        }
+    }
+    if (teammate >= 0) player_life[teammate] = player_life[player];
+    check_player_elimination(player);
+    commit_team_elimination(player);
     refresh_player_ui();
 }
 
@@ -388,7 +439,7 @@ int get_cmd_target_player_index(int row)
     }
 
     for (i = 0; i < num; i++) {
-        if (i == skip_player) continue;
+        if (i == skip_player || i == teammate_of(skip_player)) continue;
         if (count == row) return i;
         count++;
     }
@@ -465,8 +516,10 @@ int apply_counter_edit(void)
         }
         if (counter_edit_type == COUNTER_TYPE_POISON) {
             check_player_elimination(player);
+            commit_team_elimination(player);
+        } else {
+            net_sync_commit_player(player);
         }
-        net_sync_commit_player(player);
     }
 
     return change_delta;
@@ -522,8 +575,7 @@ void apply_life_delta(int player, int delta)
     if (player_life[player] <= 0) {
         set_player_elimination_action(player, LOG_EVT_LIFE, -1, delta);
     }
-    check_player_elimination(player);
-    net_sync_commit_player(player);
+    commit_team_life(player);
 }
 
 // ---------- life preview ----------
@@ -545,6 +597,8 @@ void life_preview_commit_cb(lv_timer_t *timer)
 
     for (i = 0; i < track && i < MAX_DISPLAY_PLAYERS; i++) {
         if (!player_selected[i]) continue;
+        int teammate = teammate_of(i);
+        if (teammate >= 0 && teammate < i && player_selected[teammate]) continue;
         apply_life_delta(i, pending_life_delta);
     }
     pending_life_delta = 0;
@@ -598,6 +652,7 @@ void damage_apply(void)
 
     if (selected_enemy < 0 || selected_enemy >= active_enemy_count) return;
     if (cmd_damage_target < 0 || cmd_damage_target >= MAX_DISPLAY_PLAYERS) return;
+    if (nvs_get_two_headed_giant() && nvs_get_two_hg_cmd_mode() == TWO_HG_CMD_OFF) return;
     /* Unreachable locally (the editor only opens for a live target),
        but a remote elimination can race an open editor: eliminated
        players accrue no more (same rule as apply_life_delta), and
@@ -608,14 +663,14 @@ void damage_apply(void)
     if (delta == 0) return;
 
     source = get_cmd_target_player_index(selected_enemy);
+    if (source == cmd_damage_target || source == teammate_of(cmd_damage_target)) return;
     cmd_damage_totals[source][cmd_damage_target] = enemies[selected_enemy].damage;
     damage_log_add(cmd_damage_target, -delta, LOG_EVT_CMD_DAMAGE, source);
     player_life[cmd_damage_target] = clamp_life(player_life[cmd_damage_target] - delta);
-    if (cmd_damage_totals[source][cmd_damage_target] >= 21 || player_life[cmd_damage_target] <= 0) {
+    if (commander_damage_is_lethal(source, cmd_damage_target) || player_life[cmd_damage_target] <= 0) {
         set_player_elimination_action(cmd_damage_target, LOG_EVT_CMD_DAMAGE, source, -delta);
     }
-    check_player_elimination(cmd_damage_target);
-    net_sync_commit_player(cmd_damage_target);
+    commit_team_life(cmd_damage_target);
 
     refresh_select_ui();
 }
@@ -674,9 +729,10 @@ void prepare_cmd_damage_for_player(int target)
     int num = nvs_get_num_players();
 
     cmd_damage_target = target;
+    active_enemy_count = num - 1 - (teammate_of(target) >= 0);
 
     for (i = 0; i < num; i++) {
-        if (i == target) continue;
+        if (i == target || i == teammate_of(target)) continue;
         if (row < MAX_ENEMY_COUNT) {
             enemies[row].damage = cmd_damage_totals[i][target];
             row++;
@@ -697,8 +753,7 @@ void undo_life_change(int player, int delta)
     if (player < 0 || player >= MAX_DISPLAY_PLAYERS) return;
 
     player_life[player] = clamp_life(player_life[player] - delta);
-    check_player_elimination(player);
-    net_sync_commit_player(player);
+    commit_team_life(player);
     refresh_player_ui();
     refresh_select_ui();
 }
@@ -711,7 +766,7 @@ void undo_cmd_damage(int source, int target, int delta)
     if (cmd_damage_totals[source][target] < 0)
         cmd_damage_totals[source][target] = 0;
     check_player_elimination(target);
-    net_sync_commit_player(target);
+    commit_team_elimination(target);
 }
 
 void undo_counter_change(int player, int counter_type, int delta)
@@ -724,8 +779,10 @@ void undo_counter_change(int player, int counter_type, int delta)
     );
     if (counter_type == COUNTER_TYPE_POISON) {
         check_player_elimination(player);
+        commit_team_elimination(player);
+    } else {
+        net_sync_commit_player(player);
     }
-    net_sync_commit_player(player);
     refresh_player_ui();
 }
 
