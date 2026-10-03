@@ -67,7 +67,7 @@ void refresh_counter_edit_ui(void) {
   }
 
   if (label_counter_edit_title != NULL) {
-    snprintf(title_buf, sizeof(title_buf), "%s\n%s", player_names[menu_player],
+      snprintf(title_buf, sizeof(title_buf), "%s\n%s", player_names[menu_player],
              definition->display_name);
     lv_label_set_text(label_counter_edit_title, title_buf);
   }
@@ -236,6 +236,7 @@ static lv_obj_t *color_picker_swatch = NULL;
 static lv_obj_t *color_picker_name_label = NULL;
 static lv_obj_t *color_picker_title_label = NULL;
 static int color_picker_index = 0;
+static int color_picker_team = -1;
 
 static void event_menu_color(lv_event_t *e) {
   (void)e;
@@ -267,6 +268,7 @@ static void event_color_custom(lv_event_t *e) {
   (void)e;
   if (menu_player < 0 || menu_player >= MAX_DISPLAY_PLAYERS)
     return;
+  color_picker_team = -1;
   color_picker_index = player_color_index[menu_player];
   if (color_picker_title_label != NULL) {
     snprintf(title_buf, sizeof(title_buf), "%s\nColor",
@@ -276,6 +278,25 @@ static void event_color_custom(lv_event_t *e) {
   if (color_picker_swatch != NULL)
     lv_obj_set_style_bg_color(
         color_picker_swatch,
+        get_custom_color_vib(color_picker_index, LIFE_VIB_MID), 0);
+  if (color_picker_name_label != NULL)
+    lv_label_set_text(color_picker_name_label,
+                      get_custom_color_name(color_picker_index));
+  load_screen_if_needed(screen_player_color_picker);
+}
+
+void open_team_color_picker(int team) {
+  char title_buf[24];
+  if (team < 0 || team >= 2 || !nvs_get_two_headed_giant()) return;
+
+  color_picker_team = team;
+  color_picker_index = nvs_get_team_color(team);
+  if (color_picker_title_label != NULL) {
+    snprintf(title_buf, sizeof(title_buf), "Team %d\nColor", team + 1);
+    lv_label_set_text(color_picker_title_label, title_buf);
+  }
+  if (color_picker_swatch != NULL)
+    lv_obj_set_style_bg_color(color_picker_swatch,
         get_custom_color_vib(color_picker_index, LIFE_VIB_MID), 0);
   if (color_picker_name_label != NULL)
     lv_label_set_text(color_picker_name_label,
@@ -300,6 +321,13 @@ void change_player_color(int delta) {
 }
 
 void commit_player_color(void) {
+  if (color_picker_team >= 0 && color_picker_team < 2) {
+    nvs_set_team_color(color_picker_team, color_picker_index);
+    settings_save();
+    color_picker_team = -1;
+    refresh_player_ui();
+    return;
+  }
   if (menu_player < 0 || menu_player >= MAX_DISPLAY_PLAYERS)
     return;
   player_has_override[menu_player] = true;

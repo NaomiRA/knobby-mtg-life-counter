@@ -41,6 +41,8 @@ int nvs_get_two_headed_giant(void);
 void nvs_set_two_headed_giant(int value);
 int nvs_get_two_hg_cmd_mode(void);
 void nvs_set_two_hg_cmd_mode(int value);
+int nvs_get_team_color(int team);
+void nvs_set_team_color(int team, int color_index);
 
 int nvs_get_auto_eliminate(void);
 void nvs_set_auto_eliminate(int value);

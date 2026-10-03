@@ -17,6 +17,7 @@ static int cached_timer_mode = TIMER_MODE_TURN;
 static int cached_life_total = DEFAULT_LIFE_TOTAL;
 static int cached_two_headed_giant = 0;
 static int cached_two_hg_cmd_mode = TWO_HG_CMD_INDIVIDUAL;
+static int cached_team_colors[2] = {8, 5};
 static int cached_auto_eliminate = 1; /* 1=ON (default), 0=OFF */
 static int cached_random_first = 1; /* 1=ON (default): random first-player pick on reset */
 static int cached_multi_select = 0; /* 0=OFF (default), 1=ON */
@@ -43,6 +44,8 @@ void knob_nvs_init(void)
         int8_t tm_val = TIMER_MODE_TURN;
         int8_t two_hg_val = 0;
         int8_t two_hg_cmd_val = TWO_HG_CMD_INDIVIDUAL;
+        int8_t team1_color_val = 8;
+        int8_t team2_color_val = 5;
         int16_t lt_val = DEFAULT_LIFE_TOTAL;
 
         nvs_get_i8(handle, "auto_dim", &dim_val);
@@ -55,6 +58,8 @@ void knob_nvs_init(void)
         nvs_get_i8(handle, "timer_mode", &tm_val);
         nvs_get_i8(handle, "two_hg", &two_hg_val);
         nvs_get_i8(handle, "two_hg_cmd", &two_hg_cmd_val);
+        nvs_get_i8(handle, "tm1_color", &team1_color_val);
+        nvs_get_i8(handle, "tm2_color", &team2_color_val);
         nvs_get_i16(handle, "life_total", &lt_val);
 
         cached_auto_dim = (dim_val < 0) ? AUTO_DIM_OFF : (dim_val >= AUTO_DIM_COUNT) ? AUTO_DIM_OFF : dim_val;
@@ -72,6 +77,10 @@ void knob_nvs_init(void)
         cached_two_headed_giant = (two_hg_val != 0 && cached_num_players == 4);
         cached_two_hg_cmd_mode = (two_hg_cmd_val < 0 || two_hg_cmd_val >= TWO_HG_CMD_COUNT)
                        ? TWO_HG_CMD_INDIVIDUAL : two_hg_cmd_val;
+        cached_team_colors[0] = (team1_color_val < 0 || team1_color_val >= CUSTOM_COLOR_COUNT)
+                      ? 8 : team1_color_val;
+        cached_team_colors[1] = (team2_color_val < 0 || team2_color_val >= CUSTOM_COLOR_COUNT)
+                      ? 5 : team2_color_val;
 
         int8_t ae_val = 1;
         nvs_get_i8(handle, "auto_elim", &ae_val);
@@ -249,6 +258,20 @@ void nvs_set_two_hg_cmd_mode(int value)
     settings_dirty = true;
 }
 
+int nvs_get_team_color(int team)
+{
+    if (team < 0 || team >= 2) return 0;
+    return cached_team_colors[team];
+}
+
+void nvs_set_team_color(int team, int color_index)
+{
+    if (team < 0 || team >= 2) return;
+    if (color_index < 0 || color_index >= CUSTOM_COLOR_COUNT) return;
+    cached_team_colors[team] = color_index;
+    settings_dirty = true;
+}
+
 // ---------- auto-eliminate ----------
 int nvs_get_auto_eliminate(void)
 {
@@ -313,6 +336,8 @@ void settings_save(void)
         nvs_set_i8(handle, "timer_mode", (int8_t)cached_timer_mode);
         nvs_set_i8(handle, "two_hg", (int8_t)cached_two_headed_giant);
         nvs_set_i8(handle, "two_hg_cmd", (int8_t)cached_two_hg_cmd_mode);
+        nvs_set_i8(handle, "tm1_color", (int8_t)cached_team_colors[0]);
+        nvs_set_i8(handle, "tm2_color", (int8_t)cached_team_colors[1]);
         nvs_set_i16(handle, "life_total", (int16_t)cached_life_total);
         nvs_set_i8(handle, "auto_elim", (int8_t)cached_auto_eliminate);
         nvs_set_i8(handle, "rand_first", (int8_t)cached_random_first);

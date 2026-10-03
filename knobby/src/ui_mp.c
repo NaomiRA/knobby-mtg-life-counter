@@ -132,6 +132,8 @@ static struct {
     lv_obj_t *plane_cost_rows[MULTIPLAYER_COUNT];
     lv_obj_t *plane_cost_values[MULTIPLAYER_COUNT];
     lv_obj_t *selection_outline;
+    lv_obj_t *team_buttons[2];
+    lv_obj_t *team_labels[2];
     lv_obj_t *timer_circle;
     lv_obj_t *timer_turn_label;
     lv_obj_t *timer_elapsed_label;
@@ -142,6 +144,11 @@ static lv_timer_t *select_timeout_timer = NULL;
 static int inline_damage_target = -1;
 static int inline_damage_source = -1;
 static lv_timer_t *inline_damage_timer = NULL;
+
+static lv_color_t get_team_accent(int team)
+{
+    return get_custom_color_vib(nvs_get_team_color(team), LIFE_VIB_MID);
+}
 
 void mp_commander_damage_cancel(void)
 {
@@ -612,6 +619,7 @@ static void refresh_commander_damage(int panel_index, const mp_panel_spec_t *spe
         y = (spec->y == 0) ?
             (mp_state.layout == &layout_4p && nvs_get_two_headed_giant()) ? -9 : -17 :
             (mp_state.layout == &layout_4p && nvs_get_two_headed_giant()) ? -12 : 17;
+        if (mp_state.layout == &layout_4p && nvs_get_two_headed_giant()) y += 10;
         if (mp_state.layout == &layout_4p && spec->player_index >= 2) x += 5;
     } else {
         x = 110;
@@ -634,6 +642,7 @@ static void refresh_commander_damage(int panel_index, const mp_panel_spec_t *spe
         bool top = spec->y == 0;
         int row = 0;
 
+        // Commander damage buttons layout for 4-player centric orientation
         lv_obj_set_size(group, spec->w, spec->h);
         lv_obj_set_align(group, LV_ALIGN_TOP_LEFT);
         lv_obj_set_pos(group, 0, 0);
@@ -650,6 +659,7 @@ static void refresh_commander_damage(int panel_index, const mp_panel_spec_t *spe
             button_x = life_x + (spec->x == 0 ? slot_x[slot] : -slot_x[slot]);
             button_y = life_y + (top ? -slot_y[slot] : slot_y[slot]);
             if (top) button_y += 20;
+            if (nvs_get_two_headed_giant() && nvs_get_orientation() != ORIENTATION_MODE_CENTRIC) button_y += 10;
             lv_obj_set_pos(button, button_x - lv_obj_get_width(button) / 2,
                           button_y - lv_obj_get_height(button) / 2);
             apply_object_rotation(button, angle, 0, 0);
@@ -748,6 +758,16 @@ void refresh_multiplayer_ui(void)
 
     if (layout == NULL) return;
     orientation_mode = nvs_get_orientation();
+
+    if (layout->panel_count == 4 && nvs_get_two_headed_giant()) {
+        for (i = 0; i < 2; i++) {
+            lv_color_t accent = get_team_accent(i);
+            if (mp_state.team_buttons[i] != NULL)
+                lv_obj_set_style_border_color(mp_state.team_buttons[i], accent, 0);
+            if (mp_state.team_labels[i] != NULL)
+                lv_obj_set_style_text_color(mp_state.team_labels[i], accent, 0);
+        }
+    }
 
     for (i = 0; i < layout->panel_count; i++) {
         const mp_panel_spec_t *spec = &layout->panels[i];
@@ -1148,6 +1168,7 @@ static void event_selection_outline(lv_event_t *e)
     lv_draw_line_dsc_t dsc;
     int s;
 
+    // Draw the selection outline for the wedges and panels
     lv_draw_line_dsc_init(&dsc);
     dsc.color = lv_color_hex(MP_OUTLINE_COLOR);
     dsc.width = 2;
@@ -1168,9 +1189,8 @@ static void event_selection_outline(lv_event_t *e)
         if (!is_player_selected(spec->player_index)) continue;
 
         if (nvs_get_two_headed_giant() && mp_state.layout->panel_count == 4) {
-            dsc.color = lv_color_hex(spec->player_index == 0 || spec->player_index == 3
-                                     ? 0x79D9BA : 0xE7A878);
-            dsc.width = 3;
+            dsc.color = get_team_accent(spec->player_index == 0 || spec->player_index == 3 ? 0 : 1);
+            dsc.width = 6;
         }
 
         if (spec_is_wedge(spec)) {
@@ -1283,12 +1303,11 @@ static void event_timer_outline(lv_event_t *e)
         if (!is_player_selected(spec->player_index)) continue;
         bool team_mode = nvs_get_two_headed_giant() && mp_state.layout->panel_count == 4;
         if (team_mode) {
-            lv_color_t highlight = lv_color_hex(spec->player_index == 0 || spec->player_index == 3
-                                                 ? 0x79D9BA : 0xE7A878);
+            lv_color_t highlight = get_team_accent(spec->player_index == 0 || spec->player_index == 3 ? 0 : 1);
             arc_dsc.color = highlight;
-            arc_dsc.width = 3;
+            arc_dsc.width = 6;
             line_dsc.color = highlight;
-            line_dsc.width = 3;
+            line_dsc.width = 6;
         }
         if (spec_is_wedge(spec)) {
             highlight_start = spec->wedge_start;
@@ -1325,9 +1344,25 @@ static void event_timer_outline(lv_event_t *e)
             lv_trigo_cos((int16_t)(highlight_end % 360)), 180);
         outer_end.y = WEDGE_CY + wedge_polar(
             lv_trigo_sin((int16_t)(highlight_end % 360)), 180);
-        if (!team_mode || (highlight_start != 90 && highlight_start != 270))
+        if (team_mode && selection_count() == 1 &&
+            (highlight_start == 90 || highlight_start == 270)) {
+            int team = (highlight_start == 90) ? 0 : 1;
+            outer_start.y = (highlight_start == 90)
+                ? lv_obj_get_y(mp_state.team_buttons[team])
+                : lv_obj_get_y(mp_state.team_buttons[team]) + lv_obj_get_height(mp_state.team_buttons[team]);
+        }
+        if (team_mode && selection_count() == 1 &&
+            (highlight_end == 90 || highlight_end == 270)) {
+            int team = (highlight_end == 90) ? 0 : 1;
+            outer_end.y = (highlight_end == 90)
+                ? lv_obj_get_y(mp_state.team_buttons[team])
+                : lv_obj_get_y(mp_state.team_buttons[team]) + lv_obj_get_height(mp_state.team_buttons[team]);
+        }
+        if (!team_mode || selection_count() == 1 ||
+            (highlight_start != 90 && highlight_start != 270))
             lv_draw_line(draw_ctx, &line_dsc, &inner_start, &outer_start);
-        if (!team_mode || (highlight_end != 90 && highlight_end != 270))
+        if (!team_mode || selection_count() == 1 ||
+            (highlight_end != 90 && highlight_end != 270))
             lv_draw_line(draw_ctx, &line_dsc, &inner_end, &outer_end);
         lv_draw_arc(draw_ctx, &arc_dsc, &center, highlight_radius,
                     arc_start, arc_end);
@@ -1354,25 +1389,38 @@ static void event_team_select(lv_event_t *e)
     refresh_multiplayer_ui();
 }
 
-static void add_team_button(lv_obj_t *parent, const char *name, uint32_t color, bool top)
+static void event_team_color(lv_event_t *e)
 {
+    bool top = (intptr_t)lv_event_get_user_data(e) != 0;
+    open_team_color_picker(top ? 1 : 0);
+    lv_indev_wait_release(lv_indev_get_act());
+}
+
+static void add_team_button(lv_obj_t *parent, const char *name, bool top)
+{
+    int team = top ? 1 : 0;
+    lv_color_t color = get_team_accent(team);
     lv_obj_t *button = lv_btn_create(parent);
     lv_obj_remove_style_all(button);
-    lv_obj_set_size(button, 91, 91);
-    lv_obj_set_pos(button, 132, top ? -47 : 317);
+    lv_obj_set_size(button, 96, 96);
+    lv_obj_set_pos(button, 132, top ? -45 : 314);
     lv_obj_set_style_radius(button, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(button, lv_color_hex(0x171717), 0);
     lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(button, lv_color_hex(color), 0);
+    lv_obj_set_style_border_color(button, color, 0);
     lv_obj_set_style_border_width(button, 4, 0);
     lv_obj_add_event_cb(button, event_team_select, LV_EVENT_SHORT_CLICKED,
+                        (void *)(intptr_t)top);
+    lv_obj_add_event_cb(button, event_team_color, LV_EVENT_LONG_PRESSED,
                         (void *)(intptr_t)top);
 
     lv_obj_t *label = lv_label_create(button);
     lv_label_set_text(label, name);
     lv_obj_set_style_text_font(label, &lv_font_beleren_bold_18, 0);
-    lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
+    lv_obj_set_style_text_color(label, color, 0);
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, top ? 53 : 15);
+    mp_state.team_buttons[team] = button;
+    mp_state.team_labels[team] = label;
 }
 
 /* ---------- layout rebuild ---------- */
@@ -1493,8 +1541,8 @@ void rebuild_multiplayer_layout(int track)
     lv_obj_add_event_cb(mp_state.selection_outline, event_selection_outline, LV_EVENT_DRAW_MAIN, NULL);
 
     if (nvs_get_two_headed_giant() && layout->panel_count == 4) {
-        add_team_button(mp_state.selection_outline, "Team 2", 0xE7A878, true);
-        add_team_button(mp_state.selection_outline, "Team 1", 0x79D9BA, false);
+        add_team_button(mp_state.selection_outline, "Team 2", true);
+        add_team_button(mp_state.selection_outline, "Team 1", false);
     }
 
     // Timer circle in the center of the screen
