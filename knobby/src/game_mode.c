@@ -62,9 +62,9 @@ void refresh_game_mode_menu_ui(void)
     lv_obj_set_style_bg_color(btn_gm_planechase,
         lv_color_hex(temp_planechase ? 0x176B56 : 0x1A1A2E), 0);
     lv_label_set_text(label_gm_two_hg, !temp_two_hg ? "2HG" :
-        temp_two_hg_cmd_mode == TWO_HG_CMD_OFF ? "2HG\nCmd Off" :
-        temp_two_hg_cmd_mode == TWO_HG_CMD_CUMULATIVE ? "2HG\nCumulative" :
-        "2HG\nIndividual");
+        temp_two_hg_cmd_mode == TWO_HG_CMD_OFF ? "2HG\nCmdr Dmg OFF" :
+        temp_two_hg_cmd_mode == TWO_HG_CMD_CUMULATIVE ? "2HG\nCmdr Dmg\nCumulative (31)" :
+        "2HG\nCmdr Dmg\nIndividual (21)");
     lv_obj_set_style_bg_color(btn_gm_two_hg,
         lv_color_hex(temp_two_hg ? 0x176B56 : 0x1A1A2E), 0);
 }

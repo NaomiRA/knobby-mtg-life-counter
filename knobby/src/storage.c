@@ -17,7 +17,7 @@ static int cached_timer_mode = TIMER_MODE_TURN;
 static int cached_life_total = DEFAULT_LIFE_TOTAL;
 static int cached_two_headed_giant = 0;
 static int cached_two_hg_cmd_mode = TWO_HG_CMD_INDIVIDUAL;
-static int cached_team_colors[2] = {8, 5};
+static int cached_team_colors[2] = {7, 13};
 static int cached_auto_eliminate = 1; /* 1=ON (default), 0=OFF */
 static int cached_random_first = 1; /* 1=ON (default): random first-player pick on reset */
 static int cached_multi_select = 0; /* 0=OFF (default), 1=ON */
@@ -44,8 +44,8 @@ void knob_nvs_init(void)
         int8_t tm_val = TIMER_MODE_TURN;
         int8_t two_hg_val = 0;
         int8_t two_hg_cmd_val = TWO_HG_CMD_INDIVIDUAL;
-        int8_t team1_color_val = 8;
-        int8_t team2_color_val = 5;
+        int8_t team1_color_val = 7;
+        int8_t team2_color_val = 13;
         int16_t lt_val = DEFAULT_LIFE_TOTAL;
 
         nvs_get_i8(handle, "auto_dim", &dim_val);
@@ -78,9 +78,9 @@ void knob_nvs_init(void)
         cached_two_hg_cmd_mode = (two_hg_cmd_val < 0 || two_hg_cmd_val >= TWO_HG_CMD_COUNT)
                        ? TWO_HG_CMD_INDIVIDUAL : two_hg_cmd_val;
         cached_team_colors[0] = (team1_color_val < 0 || team1_color_val >= CUSTOM_COLOR_COUNT)
-                      ? 8 : team1_color_val;
+                      ? 7 : team1_color_val;
         cached_team_colors[1] = (team2_color_val < 0 || team2_color_val >= CUSTOM_COLOR_COUNT)
-                      ? 5 : team2_color_val;
+                      ? 13 : team2_color_val;
 
         int8_t ae_val = 1;
         nvs_get_i8(handle, "auto_elim", &ae_val);
