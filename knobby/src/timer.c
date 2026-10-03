@@ -156,6 +156,7 @@ static void turn_blink_timer_cb(lv_timer_t *timer)
 void event_turn_tap(lv_event_t *e)
 {
     int player_count;
+    int first_alive_player;
     uint32_t now;
 
     if (planechase_active && lv_event_get_code(e) != LV_EVENT_LONG_PRESSED &&
@@ -164,10 +165,18 @@ void event_turn_tap(lv_event_t *e)
         return;
     }
 
+    player_count = nvs_get_num_players();
+    if (player_count < 1) player_count = 1;
+    if (player_count > MULTIPLAYER_COUNT) player_count = MULTIPLAYER_COUNT;
+    for (first_alive_player = 0; first_alive_player < player_count; first_alive_player++) {
+        if (!player_eliminated[first_alive_player]) break;
+    }
+    if (first_alive_player == player_count) return;
+
     now = lv_tick_get();
     if (turn_number <= 0) {
         turn_number = 1;
-        turn_player_index = 0;
+        turn_player_index = first_alive_player;
         turn_elapsed_ms = 0;
         game_elapsed_ms = 0;
     } else {
@@ -175,15 +184,14 @@ void event_turn_tap(lv_event_t *e)
         damage_log_add_turn(turn_player_index, get_turn_elapsed_ms());
         game_elapsed_ms = get_game_elapsed_ms();
         turn_elapsed_ms = 0;
-        player_count = nvs_get_num_players();
-        if (player_count < 1) player_count = 1;
-        if (player_count > MULTIPLAYER_COUNT) player_count = MULTIPLAYER_COUNT;
 
-        turn_player_index++;
-        if (turn_player_index >= player_count) {
-            turn_player_index = 0;
-            turn_number++;
-        }
+        do {
+            turn_player_index++;
+            if (turn_player_index >= player_count) {
+                turn_player_index = 0;
+                turn_number++;
+            }
+        } while (player_eliminated[turn_player_index]);
     }
 
     turn_started_ms = now;
