@@ -117,7 +117,10 @@ static void open_all_damage_screen(void) {
   all_damage_value = 0;
   if (cb_include_myself != NULL) {
     char cb_buf[64];
-    snprintf(cb_buf, sizeof(cb_buf), "Include myself (%s)", player_names[menu_player]);
+    if (nvs_get_two_headed_giant())
+      snprintf(cb_buf, sizeof(cb_buf), "Include my team");
+    else
+      snprintf(cb_buf, sizeof(cb_buf), "Include myself (%s)", player_names[menu_player]);
     lv_checkbox_set_text(cb_include_myself, cb_buf);
     lv_obj_clear_state(cb_include_myself, LV_STATE_CHECKED);
   }
@@ -200,6 +203,7 @@ static void event_counter_experience(lv_event_t *e) {
 
 static void event_all_damage_apply(lv_event_t *e) {
   int i;
+  bool two_hg = nvs_get_two_headed_giant();
   bool include_myself = false;
 
   if (cb_include_myself != NULL) {
@@ -208,7 +212,12 @@ static void event_all_damage_apply(lv_event_t *e) {
 
   (void)e;
   for (i = 0; i < nvs_get_players_to_track(); i++) {
-    if (i == menu_player && !include_myself) {
+    if (two_hg) {
+      bool current_team_one = (i == 0);
+      bool menu_team_one = (menu_player == 0 || menu_player == 3);
+      if (i >= 2 || (!include_myself && current_team_one == menu_team_one))
+        continue;
+    } else if (i == menu_player && !include_myself) {
       continue;
     }
     apply_life_delta(i, -all_damage_value);
