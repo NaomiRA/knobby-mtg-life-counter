@@ -1358,13 +1358,13 @@ static void add_team_button(lv_obj_t *parent, const char *name, uint32_t color, 
 {
     lv_obj_t *button = lv_btn_create(parent);
     lv_obj_remove_style_all(button);
-    lv_obj_set_size(button, 96, 96);
-    lv_obj_set_pos(button, 132, top ? -48 : 312);
+    lv_obj_set_size(button, 91, 91);
+    lv_obj_set_pos(button, 132, top ? -47 : 317);
     lv_obj_set_style_radius(button, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(button, lv_color_hex(0x171717), 0);
     lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(button, lv_color_hex(color), 0);
-    lv_obj_set_style_border_width(button, 2, 0);
+    lv_obj_set_style_border_width(button, 4, 0);
     lv_obj_add_event_cb(button, event_team_select, LV_EVENT_SHORT_CLICKED,
                         (void *)(intptr_t)top);
 
@@ -1372,7 +1372,7 @@ static void add_team_button(lv_obj_t *parent, const char *name, uint32_t color, 
     lv_label_set_text(label, name);
     lv_obj_set_style_text_font(label, &lv_font_beleren_bold_18, 0);
     lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
-    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, top ? 65 : 12);
+    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, top ? 53 : 15);
 }
 
 /* ---------- layout rebuild ---------- */
@@ -1493,8 +1493,8 @@ void rebuild_multiplayer_layout(int track)
     lv_obj_add_event_cb(mp_state.selection_outline, event_selection_outline, LV_EVENT_DRAW_MAIN, NULL);
 
     if (nvs_get_two_headed_giant() && layout->panel_count == 4) {
-        add_team_button(mp_state.selection_outline, "TEAM 2", 0xE7A878, true);
-        add_team_button(mp_state.selection_outline, "TEAM 1", 0x79D9BA, false);
+        add_team_button(mp_state.selection_outline, "Team 2", 0xE7A878, true);
+        add_team_button(mp_state.selection_outline, "Team 1", 0x79D9BA, false);
     }
 
     // Timer circle in the center of the screen

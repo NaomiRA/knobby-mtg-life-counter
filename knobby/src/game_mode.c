@@ -154,7 +154,7 @@ static void event_gm_two_hg(lv_event_t *e)
         temp_two_hg = true;
         temp_two_hg_cmd_mode = TWO_HG_CMD_OFF;
         temp_num_players = 4;
-        temp_life_total = 30;
+        temp_life_total = 60;
     } else if (temp_two_hg_cmd_mode == TWO_HG_CMD_CUMULATIVE) {
         temp_two_hg = false;
     } else {
