@@ -4,6 +4,7 @@
 #include "damage_log.h"
 #include "game_mode.h"
 #include "planechase.h"
+#include "bounty.h"
 #include "game.h"
 
 // Forward declaration
@@ -20,6 +21,7 @@ uint32_t turn_started_ms = 0;
 int turn_number = 0;
 int turn_player_index = 0;
 
+static int turn_start_player_index = 0;
 static uint32_t game_elapsed_ms = 0;
 static uint32_t game_started_ms = 0;
 static uint8_t turn_blink_steps_remaining = 0;
@@ -87,6 +89,7 @@ void turn_timer_start_fresh_for_player(int player_index)
     now = lv_tick_get();
     turn_number = 1;
     turn_player_index = player_index;
+    turn_start_player_index = player_index;
     turn_elapsed_ms = 0;
     turn_started_ms = now;
     game_elapsed_ms = 0;
@@ -110,6 +113,7 @@ void turn_timer_reset(void)
     turn_started_ms = 0;
     turn_number = 0;
     turn_player_index = 0;
+    turn_start_player_index = 0;
     game_elapsed_ms = 0;
     game_started_ms = 0;
     turn_indicator_visible = true;
@@ -120,6 +124,19 @@ void turn_timer_reset(void)
         lv_timer_pause(turn_blink_timer);
     }
 
+    refresh_turn_ui();
+    refresh_multiplayer_timer_ui();
+}
+
+void turn_timer_apply_mode(void)
+{
+    uint32_t now = lv_tick_get();
+
+    turn_elapsed_ms = get_turn_elapsed_ms();
+    game_elapsed_ms = get_game_elapsed_ms();
+    turn_started_ms = now;
+    game_started_ms = now;
+    turn_timer_enabled = nvs_get_timer_mode() != TIMER_MODE_OFF;
     refresh_turn_ui();
     refresh_multiplayer_timer_ui();
 }
@@ -158,6 +175,13 @@ void event_turn_tap(lv_event_t *e)
     int player_count;
     int first_alive_player;
     uint32_t now;
+    bool bounty_was_available = bounty_available();
+
+    if (bounty_available() && lv_event_get_code(e) != LV_EVENT_LONG_PRESSED &&
+        (lv_scr_act() != screen_multiplayer || selection_count() > 0)) {
+        open_bounty_screen();
+        return;
+    }
 
     if (planechase_active && lv_event_get_code(e) != LV_EVENT_LONG_PRESSED &&
         (lv_scr_act() != screen_multiplayer || selection_count() > 0)) {
@@ -177,6 +201,7 @@ void event_turn_tap(lv_event_t *e)
     if (turn_number <= 0) {
         turn_number = 1;
         turn_player_index = first_alive_player;
+        turn_start_player_index = first_alive_player;
         turn_elapsed_ms = 0;
         game_elapsed_ms = 0;
     } else {
@@ -189,9 +214,10 @@ void event_turn_tap(lv_event_t *e)
             turn_player_index++;
             if (turn_player_index >= player_count) {
                 turn_player_index = 0;
-                turn_number++;
             }
+            if (turn_player_index == turn_start_player_index) turn_number++;
         } while (player_eliminated[turn_player_index]);
+        if (bounty_active) bounty_turn_changed(bounty_was_available);
     }
 
     turn_started_ms = now;

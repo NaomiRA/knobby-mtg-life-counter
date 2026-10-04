@@ -16,6 +16,7 @@ extern int turn_player_index;
 void knob_timer_init(void);
 void turn_timer_start_fresh_for_player(int player_index);
 void turn_timer_reset(void);
+void turn_timer_apply_mode(void);
 uint32_t get_turn_elapsed_ms(void);
 uint32_t get_game_elapsed_ms(void);
 uint32_t get_timer_elapsed_ms(void);

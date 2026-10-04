@@ -19,7 +19,11 @@
 #include "game_mode.h"
 #include "rename.h"
 #include "mana.h"
+#include "bounty.h"
+#include "planechase.h"
+#include "resources/bounties_data.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -107,6 +111,195 @@ static void render_frame(void)
 
 /* ---- Screen navigation ---- */
 extern void reset_all_values(void);
+extern void quick_start_game(void);
+
+static lv_obj_t *find_bounty_test_label(lv_obj_t *parent, const char *text)
+{
+    if (lv_obj_check_type(parent, &lv_label_class) &&
+        strcmp(lv_label_get_text(parent), text) == 0) return parent;
+    for (uint32_t child = 0; child < lv_obj_get_child_cnt(parent); child++) {
+        lv_obj_t *found = find_bounty_test_label(lv_obj_get_child(parent, child), text);
+        if (found != NULL) return found;
+    }
+    return NULL;
+}
+
+static void advance_bounty_test_turn(void)
+{
+    lv_event_t event = {.code = LV_EVENT_LONG_PRESSED};
+    event_turn_tap(&event);
+}
+
+static void open_bounty_test_view(void)
+{
+    lv_event_t event = {.code = LV_EVENT_SHORT_CLICKED};
+    event_turn_tap(&event);
+}
+
+static int run_bounty_tests(void)
+{
+    bool seen[BOUNTY_CARD_COUNT] = {false};
+    lv_obj_t *claim_button;
+    lv_obj_t *next_button;
+    int card;
+
+    nvs_set_num_players(4);
+    nvs_set_players_to_track(4);
+    nvs_set_timer_mode(TIMER_MODE_OFF);
+    open_game_mode_menu();
+    lv_event_send(lv_obj_get_child(screen_game_mode_more, 0), LV_EVENT_CLICKED, NULL);
+    lv_event_send(lv_obj_get_child(screen_game_mode_more, 2), LV_EVENT_CLICKED, NULL);
+    assert(find_bounty_test_label(screen_game_mode_more, "Planechase\nSelected") == NULL);
+    assert(find_bounty_test_label(screen_game_mode_more, "Bounty Hunter\nSelected") != NULL);
+    lv_event_send(lv_obj_get_child(screen_game_mode_more, 3), LV_EVENT_LONG_PRESSED, NULL);
+    assert(bounty_active && !planechase_active);
+    stop_player_selection_animation();
+    turn_timer_start_fresh_for_player(0);
+    turn_timer_apply_mode();
+    back_to_main();
+    selection_set_single(0);
+    refresh_multiplayer_timer_ui();
+    assert(!bounty_available());
+    assert(find_bounty_test_label(screen_multiplayer, "View\nBounty") == NULL);
+    assert(!bounty_claim_reward(0));
+    card = bounty_get_card_index();
+    bounty_next_card();
+    assert(bounty_get_card_index() == card);
+    for (int turn = 0; turn < 7; turn++) advance_bounty_test_turn();
+    assert(turn_number == 2 && !bounty_available() && bounty_get_tier() == 1);
+    advance_bounty_test_turn();
+    assert(turn_number == 3 && turn_player_index == 0 && bounty_available());
+    assert(bounty_get_tier() == 1);
+    selection_set_single(0);
+    refresh_multiplayer_timer_ui();
+    assert(find_bounty_test_label(screen_multiplayer, "View\nBounty") != NULL);
+    open_bounty_test_view();
+    assert(lv_scr_act() == screen_bounty);
+    assert(!lv_obj_has_flag(lv_obj_get_child(screen_bounty, 0), LV_OBJ_FLAG_HIDDEN));
+    render_frame();
+    assert(save_screenshot_png("screenshots/bounty-tier1.png"));
+
+    back_to_main();
+    selection_set_single(1);
+    open_bounty_test_view();
+    claim_button = lv_obj_get_parent(find_bounty_test_label(screen_bounty, "Claim\nReward"));
+    next_button = lv_obj_get_parent(find_bounty_test_label(screen_bounty, "Next\nCard"));
+    assert(lv_obj_has_state(claim_button, LV_STATE_DISABLED));
+    card = bounty_get_card_index();
+    lv_event_send(claim_button, LV_EVENT_CLICKED, NULL);
+    assert(bounty_get_card_index() == card && bounty_can_claim(0));
+    lv_event_send(next_button, LV_EVENT_CLICKED, NULL);
+    assert(bounty_get_card_index() != card && bounty_get_tier() == 1);
+    back_to_main();
+    player_selected[0] = true;
+    player_selected[1] = true;
+    open_bounty_test_view();
+    assert(lv_obj_has_state(claim_button, LV_STATE_DISABLED));
+    card = bounty_get_card_index();
+    lv_event_send(claim_button, LV_EVENT_CLICKED, NULL);
+    assert(bounty_get_card_index() == card && bounty_can_claim(0));
+
+    back_to_main();
+    for (int turn = 0; turn < 5; turn++) advance_bounty_test_turn();
+    assert(bounty_get_tier() == 4);
+    selection_set_single(turn_player_index);
+    open_bounty_test_view();
+    assert(!lv_obj_has_state(claim_button, LV_STATE_DISABLED));
+    render_frame();
+    assert(save_screenshot_png("screenshots/bounty-tier4.png"));
+    card = bounty_get_card_index();
+    lv_event_send(claim_button, LV_EVENT_CLICKED, NULL);
+    assert(bounty_get_card_index() != card && bounty_get_tier() == 1);
+    assert(!bounty_can_claim(turn_player_index));
+    assert(find_bounty_test_label(screen_bounty,
+        "Reward claimed\n\nCreate two Treasure tokens AND draw a card.") != NULL);
+    render_frame();
+    assert(save_screenshot_png("screenshots/bounty-claimed.png"));
+    lv_event_send(lv_obj_get_parent(find_bounty_test_label(screen_bounty, "OK")), LV_EVENT_CLICKED, NULL);
+    lv_event_send(next_button, LV_EVENT_CLICKED, NULL);
+    assert(!bounty_claim_reward(turn_player_index));
+    back_to_main();
+    selection_set_single(turn_player_index);
+    open_bounty_test_view();
+    assert(lv_obj_has_state(claim_button, LV_STATE_DISABLED));
+    back_to_main();
+    advance_bounty_test_turn();
+    assert(bounty_get_tier() == 1 && bounty_can_claim(turn_player_index));
+    bounty_next_card();
+    advance_bounty_test_turn();
+    assert(bounty_get_tier() == 2);
+
+    bounty_reset();
+    for (int index = 0; index < BOUNTY_CARD_COUNT; index++) {
+        card = bounty_get_card_index();
+        assert(card >= 0 && card < BOUNTY_CARD_COUNT && !seen[card]);
+        seen[card] = true;
+        back_to_main();
+        selection_set_single(turn_player_index);
+        open_bounty_test_view();
+        assert(!lv_obj_has_flag(lv_obj_get_child(screen_bounty, 0), LV_OBJ_FLAG_HIDDEN));
+        bounty_next_card();
+    }
+    assert(bounty_get_tier() == 1 && bounty_can_claim(turn_player_index));
+    for (int index = 0; index < BOUNTY_CARD_COUNT * 3; index++) {
+        card = bounty_get_card_index();
+        assert(card >= 0 && card < BOUNTY_CARD_COUNT);
+        bounty_next_card();
+    }
+
+    back_to_main();
+    turn_number = 3;
+    turn_player_index = 0;
+    player_eliminated[1] = true;
+    player_eliminated[2] = true;
+    advance_bounty_test_turn();
+    assert(turn_player_index == 3 && bounty_get_tier() == 2);
+    assert(!bounty_claim_reward(1));
+    player_eliminated[1] = false;
+    player_eliminated[2] = false;
+    assert(bounty_claim_reward(3));
+    open_quad_menu();
+    lv_event_send(lv_obj_get_child(screen_quad_menu, 2), LV_EVENT_CLICKED, NULL);
+    lv_event_send(lv_obj_get_child(screen_tools_menu, 1), LV_EVENT_LONG_PRESSED, NULL);
+    assert(turn_number == 3 && turn_player_index == 3 && !bounty_can_claim(3));
+    assert(!turn_timer_enabled);
+    open_quad_menu();
+    lv_event_send(lv_obj_get_child(screen_quad_menu, 2), LV_EVENT_CLICKED, NULL);
+    lv_event_send(lv_obj_get_child(screen_tools_menu, 1), LV_EVENT_SHORT_CLICKED, NULL);
+    lv_event_send(lv_obj_get_child(screen_tools_menu, 1), LV_EVENT_LONG_PRESSED, NULL);
+    assert(turn_number == 3 && turn_player_index == 3 && !bounty_can_claim(3));
+    assert(turn_timer_enabled && bounty_get_tier() == 1);
+
+    reset_all_values();
+    stop_player_selection_animation();
+    turn_timer_start_fresh_for_player(2);
+    assert(!bounty_available() && bounty_get_tier() == 1);
+    for (int turn = 0; turn < 6; turn++) advance_bounty_test_turn();
+    assert(turn_number == 3 && bounty_get_tier() == 1);
+    nvs_set_players_to_track(1);
+    nvs_set_num_players(1);
+    back_to_main();
+    turn_player_index = 0;
+    nvs_set_timer_mode(TIMER_MODE_OFF);
+    turn_timer_apply_mode();
+    refresh_turn_ui();
+    assert(find_bounty_test_label(screen_1p, "View Bounty") != NULL);
+    open_bounty_test_view();
+    assert(lv_scr_act() == screen_bounty && bounty_can_claim(0));
+    back_to_main();
+    advance_bounty_test_turn();
+    assert(turn_number == 4 && bounty_get_tier() == 2);
+
+    open_game_mode_menu();
+    lv_event_send(lv_obj_get_child(screen_game_mode_more, 0), LV_EVENT_CLICKED, NULL);
+    assert(find_bounty_test_label(screen_game_mode_more, "Bounty Hunter\nSelected") == NULL);
+    lv_event_send(lv_obj_get_child(screen_game_mode_more, 3), LV_EVENT_LONG_PRESSED, NULL);
+    assert(planechase_active && !bounty_active);
+    quick_start_game();
+    assert(!bounty_active && !planechase_active && !bounty_available());
+    printf("Bounty checks passed: unlock, tiers, claims, viewers, skips, full deck, art, reset, timer modes, elimination, 1p and mode exclusion.\n");
+    return 0;
+}
 
 typedef struct {
     const char *name;
@@ -282,6 +475,7 @@ static void print_usage(void)
            "  damage player-menu rename all-damage counters-menu counter-edit\n"
            "  color-menu color-picker mana\n"
            "\nIntrospection:\n"
+           "  --bounty-test         Check bounty rules and save bounty screenshots\n"
            "  --print-settings-pages Print the number of settings pages and exit\n");
 }
 
@@ -392,12 +586,15 @@ int main(int argc, char *argv[])
     }
 
     int print_settings_pages = 0;
+    int bounty_test = 0;
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--screen") == 0 && i + 1 < argc) {
             screen_name = argv[++i];
         } else if (strcmp(argv[i], "--print-settings-pages") == 0) {
             print_settings_pages = 1;
+        } else if (strcmp(argv[i], "--bounty-test") == 0) {
+            bounty_test = 1;
         } else if (strcmp(argv[i], "--life") == 0 && i + 1 < argc) {
             life_count = parse_csv_ints(argv[++i], life_values, MAX_DISPLAY_PLAYERS);
             life_set = 1;
@@ -524,6 +721,8 @@ int main(int argc, char *argv[])
     lv_disp_drv_register(&disp_drv);
 
     knob_gui();
+
+    if (bounty_test) return run_bounty_tests();
 
     if (print_settings_pages) {
         printf("%d\n", settings_page_count);
