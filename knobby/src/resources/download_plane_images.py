@@ -1,4 +1,5 @@
 import csv
+import argparse
 import concurrent.futures
 import io
 import os
@@ -12,13 +13,17 @@ from urllib.request import Request, urlopen
 from PIL import Image, ImageOps
 
 
-SOURCE = Path(__file__).with_name("all_planes.csv")
-OUTPUT = Path(__file__).parents[2] / "data" / "planes"
+parser = argparse.ArgumentParser(description="Download and convert card artwork to LVGL Split-JPEG")
+parser.add_argument("--bounties", action="store_true", help="Use bounties.csv instead of all_planes.csv")
+args = parser.parse_args()
+SOURCE = Path(__file__).with_name("bounties.csv" if args.bounties else "all_planes.csv")
+DATA = Path(__file__).parents[2] / "data"
+OUTPUT = DATA / ("bounties" if args.bounties else "planes")
 CONVERTER = Path(__file__).parents[3] / "local_lvgl" / "scripts" / "jpg_to_sjpg.py"
-USER_AGENT = "KnobbyMTGLifeCounter/1.0 (plane image asset download)"
+USER_AGENT = "KnobbyMTGLifeCounter/1.0 (card image asset download)"
 OUTPUT_IMAGE_SIZE = (360, 360)
 JPEG_QUALITY = 90
-SPLIT_JPEG_QUALITY = 30
+SPLIT_JPEG_QUALITY = 20 if args.bounties else 30
 
 
 def download_plane(item):
@@ -83,7 +88,15 @@ for source_path in OUTPUT.glob("*.jpg"):
     source_path.unlink()
 
 total_size = sum(sizes)
-asset_budget = 0x240000
-print(f"Downloaded and converted {len(sizes)} planes ({total_size:,} bytes) to {OUTPUT}")
-if total_size > asset_budget:
-    raise SystemExit(f"Assets exceed the reserved SPIFFS budget of {asset_budget:,} bytes")
+partition_file = Path(__file__).parents[2] / "partitions.csv"
+with partition_file.open(newline="", encoding="utf-8") as partitions:
+    partition_size = next(
+        int(row[4].strip(), 0) for row in csv.reader(partitions)
+        if row and row[0].strip() == "spiffs"
+    )
+asset_budget = partition_size * 9 // 10
+combined_size = sum(asset.stat().st_size for asset in DATA.rglob("*") if asset.is_file())
+print(f"Downloaded and converted {len(sizes)} cards ({total_size:,} bytes) to {OUTPUT}")
+print(f"Combined data assets: {combined_size:,} bytes; budget: {asset_budget:,} bytes")
+if combined_size > asset_budget:
+    raise SystemExit(f"Assets exceed the SPIFFS budget of {asset_budget:,} bytes (10% reserved)")

@@ -6,6 +6,7 @@
 #include "timer.h"
 #include "game_mode.h"
 #include "planechase.h"
+#include "bounty.h"
 #include "storage.h"
 #include "hw.h"
 
@@ -64,6 +65,18 @@ void refresh_turn_ui(void)
 {
     char buf[48];
     char elapsed_buf[16];
+
+    if (bounty_active) {
+        if (bounty_available()) snprintf(buf, sizeof(buf), "View Bounty");
+        else snprintf(buf, sizeof(buf), "Turn %d", turn_number);
+        lv_label_set_text(label_turn, buf);
+        lv_obj_set_style_text_font(label_turn, &lv_font_beleren_bold_18, 0);
+        if (turn_number > 0) lv_obj_clear_flag(turn_container, LV_OBJ_FLAG_HIDDEN);
+        else lv_obj_add_flag(turn_container, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(turn_live_dot, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_opa(turn_container, LV_OPA_COVER, 0);
+        return;
+    }
 
     if (planechase_active) {
         lv_label_set_text(label_turn, "Plane\nHold: end turn");

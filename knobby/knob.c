@@ -11,6 +11,7 @@
 #include "src/settings.h"
 #include "src/game_mode.h"
 #include "src/planechase.h"
+#include "src/bounty.h"
 #include "src/damage_log.h"
 #include "src/rename.h"
 #include "src/mana.h"
@@ -342,7 +343,7 @@ static void handle_back_navigation(lv_obj_t *screen)
     } else if (screen == screen_custom_life) {
         refresh_game_mode_menu_ui();
         lv_scr_load(screen_game_mode_menu);
-    } else if (screen == screen_planechase) {
+    } else if (screen == screen_planechase || screen == screen_bounty) {
         back_to_main();
     } else if (screen == screen_player_menu) {
         back_to_main();
@@ -376,6 +377,7 @@ static void reset_all_values_internal(bool game_mode_start, bool animate_selecti
     brightness_apply();
 
     turn_timer_reset();
+    bounty_reset();
 
     refresh_main_ui();
     refresh_select_ui();
@@ -414,6 +416,7 @@ void quick_start_game(void)
     nvs_set_life_total(DEFAULT_LIFE_TOTAL);
     settings_save();
     planechase_set_active(false, DEFAULT_NUM_PLAYERS);
+    bounty_set_active(false);
     rebuild_multiplayer_layout(DEFAULT_NUM_PLAYERS);
     reset_all_values_internal(false, true);
     back_to_main();
@@ -484,6 +487,7 @@ void knob_gui(void)
     build_game_mode_menu_screen();
     build_custom_life_screen();
     build_planechase_screen();
+    build_bounty_screen();
     menu_facing_hook_screens();
 
     refresh_main_ui();

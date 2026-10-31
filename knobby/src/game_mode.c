@@ -1,5 +1,6 @@
 #include "game_mode.h"
 #include "planechase.h"
+#include "bounty.h"
 #include "storage.h"
 #include "settings.h"
 #include "ui_mp.h"
@@ -21,6 +22,8 @@ static lv_obj_t *label_gm_timer_mode = NULL;
 static lv_obj_t *label_gm_life_total = NULL;
 static lv_obj_t *btn_gm_planechase = NULL;
 static lv_obj_t *label_gm_planechase = NULL;
+static lv_obj_t *btn_gm_bounty = NULL;
+static lv_obj_t *label_gm_bounty = NULL;
 static lv_obj_t *btn_gm_two_hg = NULL;
 static lv_obj_t *label_gm_two_hg = NULL;
 
@@ -32,6 +35,7 @@ static int temp_num_players;
 static int temp_timer_mode;
 static int temp_life_total;
 static bool temp_planechase;
+static bool temp_bounty;
 static bool temp_two_hg;
 static int temp_two_hg_cmd_mode;
 
@@ -61,6 +65,9 @@ void refresh_game_mode_menu_ui(void)
     lv_label_set_text(label_gm_planechase, temp_planechase ? "Planechase\nSelected" : "Planechase");
     lv_obj_set_style_bg_color(btn_gm_planechase,
         lv_color_hex(temp_planechase ? 0x176B56 : 0x1A1A2E), 0);
+    lv_label_set_text(label_gm_bounty, temp_bounty ? "Bounty Hunter\nSelected" : "Bounty Hunter");
+    lv_obj_set_style_bg_color(btn_gm_bounty,
+        lv_color_hex(temp_bounty ? 0x176B56 : 0x1A1A2E), 0);
     lv_label_set_text(label_gm_two_hg, !temp_two_hg ? "2HG" :
         temp_two_hg_cmd_mode == TWO_HG_CMD_OFF ? "2HG\nCmdr Dmg OFF" :
         temp_two_hg_cmd_mode == TWO_HG_CMD_CUMULATIVE ? "2HG\nCmdr Dmg\nCumulative (31)" :
@@ -83,6 +90,7 @@ void open_game_mode_menu(void)
     temp_timer_mode = nvs_get_timer_mode();
     temp_life_total = nvs_get_life_total();
     temp_planechase = planechase_active;
+    temp_bounty = bounty_active;
     temp_two_hg = nvs_get_two_headed_giant();
     temp_two_hg_cmd_mode = nvs_get_two_hg_cmd_mode();
     refresh_game_mode_menu_ui();
@@ -144,6 +152,15 @@ static void event_gm_planechase(lv_event_t *e)
 {
     (void)e;
     temp_planechase = !temp_planechase;
+    if (temp_planechase) temp_bounty = false;
+    refresh_game_mode_menu_ui();
+}
+
+static void event_gm_bounty(lv_event_t *e)
+{
+    (void)e;
+    temp_bounty = !temp_bounty;
+    if (temp_bounty) temp_planechase = false;
     refresh_game_mode_menu_ui();
 }
 
@@ -180,6 +197,7 @@ static void event_gm_apply(lv_event_t *e)
     nvs_set_life_total(temp_life_total);
     settings_save();
     planechase_set_active(temp_planechase, temp_num_players);
+    bounty_set_active(temp_bounty);
     reset_all_values_for_game_mode();
     rebuild_multiplayer_layout(temp_num_players);
     back_to_main();
@@ -206,7 +224,7 @@ void build_game_mode_menu_screen(void)
     quad_item_t more_items[4] = {
         {"Planechase",          event_gm_planechase,       true, LV_EVENT_CLICKED},
         {"2HG",                 event_gm_two_hg,           true, LV_EVENT_CLICKED},
-        {"Bounty Hunter",       NULL,                      false, LV_EVENT_CLICKED},
+        {"Bounty Hunter",       event_gm_bounty,            true, LV_EVENT_CLICKED},
         {"More\n(Hold to apply\n& start game)", event_gm_more,           true, LV_EVENT_SHORT_CLICKED},
     };
     build_quad_screen(&screen_game_mode_menu, items);
@@ -215,6 +233,8 @@ void build_game_mode_menu_screen(void)
     label_gm_planechase = lv_obj_get_child(btn_gm_planechase, 0);
     btn_gm_two_hg = lv_obj_get_child(screen_game_mode_more, 1);
     label_gm_two_hg = lv_obj_get_child(btn_gm_two_hg, 0);
+    btn_gm_bounty = lv_obj_get_child(screen_game_mode_more, 2);
+    label_gm_bounty = lv_obj_get_child(btn_gm_bounty, 0);
 
     btn = lv_obj_get_child(screen_game_mode_menu, 3);
     lv_obj_add_event_cb(btn, event_gm_apply, LV_EVENT_LONG_PRESSED, NULL);

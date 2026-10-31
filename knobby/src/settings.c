@@ -4,6 +4,7 @@
 #include <string.h>
 #include "dice.h"
 #include "timer.h"
+#include "bounty.h"
 #include "game_mode.h"
 #include "damage_log.h"
 #include "rename.h"
@@ -658,7 +659,9 @@ static void event_tool_timer_confirm(lv_event_t *e)
 
     nvs_set_timer_mode(preview_timer_mode);
     settings_save();
-    if (!turn_timer_enabled) {
+    if (bounty_active && turn_number > 0) {
+        turn_timer_apply_mode();
+    } else if (!turn_timer_enabled) {
         turn_timer_start_fresh_for_player(0);
     } else {
         refresh_turn_ui();

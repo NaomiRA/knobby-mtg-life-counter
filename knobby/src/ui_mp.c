@@ -7,6 +7,7 @@
 #include "timer.h"
 #include "game_mode.h"
 #include "planechase.h"
+#include "bounty.h"
 
 extern void reset_all_values(void);
 extern void quick_start_game(void);
@@ -892,8 +893,9 @@ void refresh_multiplayer_timer_ui(void)
         return;
     }
 
-    if (planechase_active && selection_count() > 0) {
-        lv_label_set_text(mp_state.timer_turn_label, "View\nPlane");
+    if ((planechase_active || bounty_available()) && selection_count() > 0) {
+        lv_label_set_text(mp_state.timer_turn_label, bounty_available() ? "View\nBounty" : "View\nPlane");
+        lv_obj_set_style_text_font(mp_state.timer_turn_label, &lv_font_beleren_bold_20, 0);
         lv_obj_set_style_text_align(mp_state.timer_turn_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(mp_state.timer_turn_label, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
@@ -939,7 +941,7 @@ void refresh_multiplayer_timer_ui(void)
 /* ---------- events ---------- */
 static void event_center_circle_tap(lv_event_t *e)
 {
-    (void)e;
+    if (lv_event_get_code(e) == LV_EVENT_LONG_PRESSED && !bounty_active) return;
     if (turn_number <= 0) {
         if (!player_selection_animation_active()) quick_start_game();
         return;
@@ -1236,7 +1238,7 @@ static void event_timer_outline(lv_event_t *e)
     if (mp_state.layout == NULL || mp_state.timer_circle == NULL ||
         lv_obj_has_flag(mp_state.timer_circle, LV_OBJ_FLAG_HIDDEN)) return;
 
-    if (!(planechase_active && selection_count() > 0)) {
+    if (!((planechase_active || bounty_available()) && selection_count() > 0)) {
         for (i = 0; i < mp_state.layout->panel_count; i++) {
             const mp_panel_spec_t *spec = &mp_state.layout->panels[i];
 
@@ -1555,7 +1557,8 @@ void rebuild_multiplayer_layout(int track)
     lv_obj_set_style_border_width(mp_state.timer_circle, 2, 0);
     lv_obj_set_style_border_color(mp_state.timer_circle, lv_color_hex(0xA0A0A0), 0);
     lv_obj_set_style_pad_all(mp_state.timer_circle, 4, 0);
-    lv_obj_add_event_cb(mp_state.timer_circle, event_center_circle_tap, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mp_state.timer_circle, event_center_circle_tap, LV_EVENT_SHORT_CLICKED, NULL);
+    lv_obj_add_event_cb(mp_state.timer_circle, event_center_circle_tap, LV_EVENT_LONG_PRESSED, NULL);
     lv_obj_add_event_cb(screen_multiplayer, event_timer_outline, LV_EVENT_DRAW_POST, NULL);
 
     // Turn and elapsed time labels inside the timer circle
