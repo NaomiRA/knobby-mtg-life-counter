@@ -23,7 +23,7 @@ CONVERTER = Path(__file__).parents[3] / "local_lvgl" / "scripts" / "jpg_to_sjpg.
 USER_AGENT = "KnobbyMTGLifeCounter/1.0 (card image asset download)"
 OUTPUT_IMAGE_SIZE = (360, 360)
 JPEG_QUALITY = 90
-SPLIT_JPEG_QUALITY = 30
+SPLIT_JPEG_QUALITY = 20 if args.bounties else 30
 
 
 def download_plane(item):
